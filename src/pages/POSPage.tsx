@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Search, ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote,
-  Smartphone, Sparkles, UtensilsCrossed, Tag, MessageSquare, Users, ChefHat,
+  Smartphone, Sparkles, UtensilsCrossed, Tag, MessageSquare, Users, ChefHat, Unlock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -54,7 +54,7 @@ export default function POSPage() {
   const [ticketPayment, setTicketPayment] = useState<Payment | null>(null)
   const [ticketChange, setTicketChange] = useState(0)
   const [ticketTableLabel, setTicketTableLabel] = useState('Mostrador')
-  const [cashOpen, setCashOpen] = useState(true)
+  const [cashOpen, setCashOpen] = useState(false)
 
   const cart = usePOSStore(s => s.cart)
   const tableId = usePOSStore(s => s.tableId)
@@ -75,7 +75,7 @@ export default function POSPage() {
     if (!ctx) return
     catalogRepository.getProducts(ctx).then(setProducts)
     tableRepository.getTables(ctx).then(setTables)
-    cashRepository.getOpenRegister(ctx).then(r => setCashOpen(!!r))
+    refreshCashStatus()
   }, [ctx])
 
   useEffect(() => {
@@ -151,9 +151,36 @@ export default function POSPage() {
     notes: c.notes,
   }))
 
+  const refreshCashStatus = async () => {
+    if (!ctx) return null
+    const r = await cashRepository.getOpenRegister(ctx)
+    setCashOpen(!!r)
+    return r
+  }
+
+  const handleOpenCash = async (amount = 2000) => {
+    if (!ctx) return
+    setLoading(true)
+    try {
+      await cashRepository.openRegister(ctx, amount)
+      await refreshCashStatus()
+      toast('Caja abierta — ya puedes cobrar', 'success')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo abrir la caja', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openPayModal = async () => {
+    await refreshCashStatus()
+    setPayModal(true)
+  }
+
   const handlePay = async () => {
     if (!ctx || !cart.length) return
-    if (!cashOpen) {
+    const register = await refreshCashStatus()
+    if (!register) {
       toast('Abre la caja antes de cobrar', 'error')
       return
     }
@@ -346,7 +373,7 @@ export default function POSPage() {
             <Button variant="outline" size="md" className="h-11" disabled={!cart.length || loading} onClick={handleSendKitchen}>
               <ChefHat size={16} /> Cocina
             </Button>
-            <Button size="md" className="h-11" disabled={!cart.length} onClick={() => setPayModal(true)}>
+            <Button size="md" className="h-11" disabled={!cart.length} onClick={openPayModal}>
               <CreditCard size={16} /> Cobrar
             </Button>
           </div>
@@ -394,6 +421,15 @@ export default function POSPage() {
 
       <Modal open={payModal} onClose={() => setPayModal(false)} title="Procesar cobro" size="sm">
         <div className="p-5 space-y-4">
+          {!cashOpen && (
+            <div className="rounded-xl border border-ops-danger/40 bg-red-50 p-4 space-y-3">
+              <p className="text-sm font-semibold text-ops-danger">Caja cerrada</p>
+              <p className="text-xs text-slate-600">Debes abrir la caja antes de cobrar.</p>
+              <Button className="w-full" loading={loading} onClick={() => handleOpenCash(2000)}>
+                <Unlock size={16} /> Abrir caja con $2,000
+              </Button>
+            </div>
+          )}
           <div className="bg-brand-50 border border-brand-200 rounded-2xl p-5 text-center">
             <p className="text-[10px] font-mono text-slate-500 uppercase">Total</p>
             <p className="text-4xl font-mono font-black text-brand-600 mt-1">{formatCurrency(total)}</p>
@@ -424,7 +460,7 @@ export default function POSPage() {
             </div>
           )}
           <Button className="w-full" size="lg" loading={loading} onClick={handlePay}
-            disabled={(payMethod === 'efectivo' && Number(cashReceived) < total) || !mixedValid}>
+            disabled={!cashOpen || (payMethod === 'efectivo' && Number(cashReceived) < total) || !mixedValid}>
             Confirmar cobro
           </Button>
         </div>
