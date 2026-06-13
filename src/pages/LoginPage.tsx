@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/brand/Logo'
 import { useAuthStore } from '@/store/authStore'
 import { authRepository } from '@/repositories/authRepository'
+import { bootstrapService } from '@/services/bootstrapService'
+import { isSupabaseConfigured, getDataMode } from '@/lib/config'
 import { toast } from '@/components/ui/Toast'
-import { getDataMode } from '@/lib/config'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -36,6 +37,13 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const session = await authRepository.signIn(email, password)
+      if (isSupabaseConfigured()) {
+        await bootstrapService.pullFromRemote({
+          tenantId: session.tenant.id,
+          sucursalId: session.sucursal.id,
+          userId: session.user.id,
+        })
+      }
       setSession(session)
       toast(`Sistema activo — Bienvenido ${session.user.full_name}`, 'success')
       navigate('/app/dashboard')

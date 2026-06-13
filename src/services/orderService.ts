@@ -4,12 +4,19 @@ import { generateFolio } from '@/lib/utils'
 
 export const orderService = {
   async createOrder(data: Partial<Order>, items: Partial<OrderItem>[]): Promise<Order> {
-    const folio = generateFolio()
+    const row = {
+      ...data,
+      folio: data.folio ?? generateFolio(),
+      status: data.status ?? 'abierta',
+    }
     const { data: order, error } = await supabase
-      .from('orders').insert({ ...data, folio, status: 'abierta' }).select().single()
+      .from('orders').insert(row).select().single()
     if (error) throw error
     if (items.length > 0) {
-      await supabase.from('order_items').insert(items.map((i) => ({ ...i, order_id: order.id })))
+      const { error: itemsErr } = await supabase.from('order_items').insert(
+        items.map((i) => ({ ...i, order_id: order.id }))
+      )
+      if (itemsErr) throw itemsErr
     }
     return order
   },

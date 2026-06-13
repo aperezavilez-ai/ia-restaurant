@@ -11,15 +11,32 @@ export const bootstrapService = {
     const synced: string[] = []
 
     try {
-      const [products, tables, orders] = await Promise.all([
+      const [categories, products, areas, tables, orders] = await Promise.all([
+        supabase.from('categories').select('*').eq('tenant_id', ctx.tenantId),
         supabase.from('products').select('*').eq('tenant_id', ctx.tenantId),
+        supabase.from('table_areas').select('*').eq('sucursal_id', ctx.sucursalId),
         supabase.from('tables').select('*').eq('sucursal_id', ctx.sucursalId),
-        supabase.from('orders').select('*, order_items(*)').eq('sucursal_id', ctx.sucursalId).order('created_at', { ascending: false }).limit(100),
+        supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .eq('sucursal_id', ctx.sucursalId)
+          .order('created_at', { ascending: false })
+          .limit(100),
       ])
+
+      if (categories.data?.length) {
+        for (const c of categories.data) await localDb.saveCategory(c)
+        synced.push('categories')
+      }
 
       if (products.data?.length) {
         for (const p of products.data) await localDb.saveProduct(p)
         synced.push('products')
+      }
+
+      if (areas.data?.length) {
+        for (const a of areas.data) await localDb.saveArea(a)
+        synced.push('table_areas')
       }
 
       if (tables.data?.length) {

@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "supabase:admin": "node scripts/supabase-admin.mjs",
     "supabase:sql": "node scripts/run-sql.mjs",
+    "supabase:staff": "node scripts/seed-staff.mjs",
     "supabase:link": "npx supabase link --project-ref pssycnwgolxiwoyzdsdg"
   },
   "dependencies": {

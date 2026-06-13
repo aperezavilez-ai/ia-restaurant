@@ -1,14 +1,48 @@
 import { orderService } from '@/services/orderService'
 import { paymentService } from '@/services/paymentService'
+import { tableService } from '@/services/tableService'
 import { localDb } from '@/lib/localDb'
 import { opsBroadcast } from '@/services/opsBroadcast'
 import { inventoryRepository } from '@/repositories/inventoryRepository'
 import { crmRepository } from '@/repositories/crmRepository'
 import { withLocalFirst } from './base'
+import { isSupabaseConfigured } from '@/lib/config'
 import { generateFolio } from '@/lib/utils'
 import { TAX_RATE } from '@/data/constants'
-import type { Order, OrderItem, Payment, PaymentMethod } from '@/types'
+import type { Order, OrderItem, Payment, PaymentMethod, RestaurantTable } from '@/types'
 import type { TenantContext } from '@/types/context'
+
+async function pushOrderRemote(
+  order: Order,
+  items: OrderItem[],
+  payments?: Payment[],
+  tablePatch?: RestaurantTable
+) {
+  if (!isSupabaseConfigured()) return
+  try {
+    await orderService.createOrder(order, items)
+    if (payments) {
+      for (const p of payments) await paymentService.createPayment(p)
+    }
+    if (tablePatch) {
+      await tableService.updateTableStatus(
+        tablePatch.id,
+        tablePatch.status,
+        tablePatch.current_order_id
+      )
+    }
+  } catch {
+    await localDb.enqueueSync({ table: 'orders', operation: 'insert', payload: order as never })
+    for (const item of items) {
+      await localDb.enqueueSync({ table: 'order_items', operation: 'insert', payload: item as never })
+    }
+    if (payments) {
+      for (const p of payments) {
+        await localDb.enqueueSync({ table: 'payments', operation: 'insert', payload: p as never })
+      }
+    }
+  }
+}
 
 export interface CartLine {
   product_id: string
@@ -137,15 +171,14 @@ export const orderRepository = {
       const tables = await localDb.getTables(ctx.tenantId, ctx.sucursalId)
       const table = tables.find(t => t.id === options.tableId)
       if (table) {
-        await localDb.updateTable({ ...table, status: 'libre', current_order_id: undefined, opened_at: undefined })
+        const freed: RestaurantTable = { ...table, status: 'libre', current_order_id: undefined, opened_at: undefined }
+        await localDb.updateTable(freed)
+        await pushOrderRemote(order, items, payments, freed)
+      } else {
+        await pushOrderRemote(order, items, payments)
       }
-    }
-
-    if (import.meta.env.DEV) {
-      try {
-        await orderService.createOrder(order, items)
-        for (const p of payments) await paymentService.createPayment(p)
-      } catch { /* queued for sync */ }
+    } else {
+      await pushOrderRemote(order, items, payments)
     }
 
     return { order: { ...order, items }, payment, payments }
@@ -192,19 +225,23 @@ export const orderRepository = {
     inventoryRepository.deductForOrder(lines, order.folio)
     opsBroadcast.notify()
 
+    let tablePatch: RestaurantTable | undefined
     if (tableId) {
       const tables = await localDb.getTables(ctx.tenantId, ctx.sucursalId)
       const table = tables.find((t) => t.id === tableId)
       if (table) {
-        await localDb.updateTable({
+        tablePatch = {
           ...table,
           status: 'ocupada',
           current_order_id: orderId,
           opened_at: table.opened_at || now,
-        })
+        }
+        await localDb.updateTable(tablePatch)
         opsBroadcast.notify()
       }
     }
+
+    await pushOrderRemote(order, items, undefined, tablePatch)
 
     return { ...order, items }
   },

@@ -160,6 +160,16 @@ export const localDb = {
     await db.put('products', product)
   },
 
+  async saveCategory(category: Category) {
+    const db = await getDb()
+    await db.put('categories', category)
+  },
+
+  async saveArea(area: TableArea) {
+    const db = await getDb()
+    await db.put('table_areas', area)
+  },
+
   async getTables(tenantId: string, sucursalId: string) {
     const all = await getAll('tables')
     const areas = await getAll('table_areas')

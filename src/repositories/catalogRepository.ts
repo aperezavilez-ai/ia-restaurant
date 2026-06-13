@@ -1,6 +1,7 @@
 import { catalogService } from '@/services/catalogService'
 import { localDb } from '@/lib/localDb'
 import { withLocalFirst } from './base'
+import { isSupabaseConfigured } from '@/lib/config'
 import type { Product, Category } from '@/types'
 import type { TenantContext } from '@/types/context'
 
@@ -34,10 +35,12 @@ export const catalogRepository = {
       preparation_time: data.preparation_time,
     }
     await localDb.saveProduct(product)
-    if (import.meta.env.DEV) {
+    if (isSupabaseConfigured()) {
       try {
         await catalogService.createProduct(product)
-      } catch { /* sync later */ }
+      } catch {
+        await localDb.enqueueSync({ table: 'products', operation: 'insert', payload: product as never })
+      }
     }
     return product
   },
