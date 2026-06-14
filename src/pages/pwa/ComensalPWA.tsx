@@ -4,12 +4,15 @@ import { QrCode, ShoppingCart, Bell, CreditCard, Star, Plus, Minus, Loader2 } fr
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { formatCurrency, cn } from '@/lib/utils'
-import { SEED_PRODUCTS } from '@/data/seed'
-import { getTableByNumber } from '@/lib/tableLookup'
 import { useLiveFlowStore } from '@/store/liveFlowStore'
 import { useLiveFlowSync } from '@/hooks/useLiveFlowSync'
-import { PwaBackLink } from '@/components/layout/PageBack'
+import { useComensalManifest } from '@/hooks/useComensalManifest'
 import { toast } from '@/components/ui/Toast'
+import { InstallMenuBanner } from '@/components/comensal/InstallMenuBanner'
+import { ComensalWelcome } from '@/components/comensal/ComensalWelcome'
+import { publicMenuService } from '@/services/publicMenuService'
+import { isSupabaseConfigured } from '@/lib/config'
+import type { Category, Product } from '@/types'
 
 const STATUS_LABELS: Record<string, string> = {
   enviado: 'Enviado — esperando caja',
@@ -20,49 +23,88 @@ const STATUS_LABELS: Record<string, string> = {
   rechazado: 'Rechazado',
 }
 
-export default function ComensalPWA() {
-  const [params] = useSearchParams()
-  const mesa = Number(params.get('mesa') || '5')
-  const table = getTableByNumber(mesa)
+const LAST_MESA_KEY = 'comensal-last-mesa'
+
+type ResolvedTable = NonNullable<Awaited<ReturnType<typeof publicMenuService.resolveTableByNumber>>>
+
+function ComensalMenuView({ mesa }: { mesa: number }) {
+  const [table, setTable] = useState<ResolvedTable | null>(null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [tenantName, setTenantName] = useState('IA·RESTAURANT')
+  const [loading, setLoading] = useState(true)
 
   const [cart, setCart] = useState<{ id: string; name: string; price: number; qty: number }[]>([])
   const [sending, setSending] = useState(false)
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null)
 
-  const submitQROrder = useLiveFlowStore(s => s.submitQROrder)
-  const addWaiterAlert = useLiveFlowStore(s => s.addWaiterAlert)
+  const submitQROrder = useLiveFlowStore((s) => s.submitQROrder)
+  const addWaiterAlert = useLiveFlowStore((s) => s.addWaiterAlert)
+  const hydrateFromRemote = useLiveFlowStore((s) => s.hydrateFromRemote)
   const { qrOrders } = useLiveFlowSync(1500)
 
   const activeOrder = activeOrderId
-    ? qrOrders.find(o => o.id === activeOrderId)
-    : qrOrders.find(o => o.table_number === mesa && !['entregado', 'rechazado'].includes(o.status))
+    ? qrOrders.find((o) => o.id === activeOrderId)
+    : qrOrders.find((o) => o.table_number === mesa && !['entregado', 'rechazado'].includes(o.status))
 
-  const products = SEED_PRODUCTS.filter(p => p.is_active)
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
+
+  useEffect(() => {
+    localStorage.setItem(LAST_MESA_KEY, String(mesa))
+    if (isSupabaseConfigured()) hydrateFromRemote()
+  }, [mesa, hydrateFromRemote])
+
+  useEffect(() => {
+    setLoading(true)
+    Promise.all([
+      publicMenuService.resolveTableByNumber(mesa),
+      publicMenuService.getMenu(),
+      publicMenuService.getTenantName(),
+    ])
+      .then(([tbl, menu, name]) => {
+        setTable(tbl)
+        setProducts(menu.products)
+        setCategories(menu.categories)
+        setTenantName(name)
+      })
+      .finally(() => setLoading(false))
+  }, [mesa])
 
   useEffect(() => {
     if (activeOrder && !activeOrderId) setActiveOrderId(activeOrder.id)
   }, [activeOrder, activeOrderId])
 
-  if (!table) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-command-bg">
-        <p className="text-slate-600">Mesa {mesa} no encontrada. Escanea un QR válido.</p>
+      <div className="min-h-screen flex items-center justify-center bg-command-bg">
+        <Loader2 size={28} className="animate-spin text-brand-500" />
       </div>
     )
   }
 
-  const add = (p: typeof products[0]) => {
+  if (!table) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-command-bg max-w-md mx-auto">
+        <div className="text-center">
+          <p className="text-slate-800 font-bold">Mesa {mesa} no encontrada</p>
+          <p className="text-sm text-slate-600 mt-2">Escanea el QR correcto de tu mesa.</p>
+          <a href="/comensal" className="text-brand-600 text-sm mt-4 inline-block">Volver</a>
+        </div>
+      </div>
+    )
+  }
+
+  const add = (p: Product) => {
     if (activeOrder) return
-    setCart(c => {
-      const ex = c.find(i => i.id === p.id)
-      if (ex) return c.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i)
+    setCart((c) => {
+      const ex = c.find((i) => i.id === p.id)
+      if (ex) return c.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i))
       return [...c, { id: p.id, name: p.name, price: p.price, qty: 1 }]
     })
   }
 
   const updateQty = (id: string, delta: number) => {
-    setCart(c => c.map(i => i.id === id ? { ...i, qty: i.qty + delta } : i).filter(i => i.qty > 0))
+    setCart((c) => c.map((i) => (i.id === id ? { ...i, qty: i.qty + delta } : i)).filter((i) => i.qty > 0))
   }
 
   const sendOrder = async () => {
@@ -75,7 +117,7 @@ export default function ComensalPWA() {
         area: table.area_name,
         waiter_id: table.waiter_id,
         waiter_name: table.waiter_name,
-        items: cart.map(c => ({
+        items: cart.map((c) => ({
           product_id: c.id,
           product_name: c.name,
           quantity: c.qty,
@@ -84,7 +126,10 @@ export default function ComensalPWA() {
       })
       setActiveOrderId(order.id)
       setCart([])
-      toast('Pedido enviado — ' + (order.status === 'en_preparacion' ? 'ya va a cocina' : 'caja lo validará'), 'success')
+      toast(
+        'Pedido enviado — ' + (order.status === 'en_preparacion' ? 'ya va a cocina' : 'caja lo validará'),
+        'success'
+      )
     } finally {
       setSending(false)
     }
@@ -100,19 +145,39 @@ export default function ComensalPWA() {
     toast('Mesero notificado', 'success')
   }
 
+  const renderProductGrid = (items: Product[]) => (
+    <div className="grid grid-cols-2 gap-2">
+      {items.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => add(p)}
+          disabled={!!activeOrder}
+          className={cn('product-tile rounded-xl p-3 text-left', activeOrder && 'opacity-50')}
+        >
+          <p className="text-sm font-bold text-slate-800 leading-tight">{p.name}</p>
+          <p className="text-brand-600 font-mono font-bold text-sm mt-2">{formatCurrency(p.price)}</p>
+          {cart.find((c) => c.id === p.id) && (
+            <Badge variant="amber" className="mt-2">{cart.find((c) => c.id === p.id)!.qty}</Badge>
+          )}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-command-bg max-w-md mx-auto pb-44">
       <header className="gradient-amber text-white p-4 sticky top-0 z-10 shadow-glow">
-        <PwaBackLink light className="mb-2" />
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] opacity-80 uppercase tracking-widest">Comensal · QR</p>
+            <p className="text-[10px] opacity-80 uppercase tracking-widest">{tenantName}</p>
             <p className="font-black text-lg">Mesa {table.number} · {table.area_name}</p>
           </div>
           <QrCode size={24} />
         </div>
         <p className="text-xs opacity-80 mt-1">Mesero: {table.waiter_name}</p>
       </header>
+
+      <InstallMenuBanner />
 
       {activeOrder && (
         <div className="mx-4 mt-4 p-4 rounded-xl bg-white border-2 border-brand-200 shadow-glow">
@@ -121,7 +186,9 @@ export default function ComensalPWA() {
           <div className="flex gap-1 mt-3 flex-wrap">
             {['enviado', 'en_preparacion', 'listo', 'entregado'].map((step, i) => {
               const steps = ['enviado', 'en_preparacion', 'listo', 'entregado']
-              const currentIdx = steps.indexOf(activeOrder.status === 'validado' ? 'en_preparacion' : activeOrder.status)
+              const currentIdx = steps.indexOf(
+                activeOrder.status === 'validado' ? 'en_preparacion' : activeOrder.status
+              )
               const done = i <= currentIdx
               return (
                 <Badge key={step} variant={done ? 'success' : 'default'} className="text-[9px]">
@@ -136,28 +203,40 @@ export default function ComensalPWA() {
         </div>
       )}
 
-      <div className="p-4 grid grid-cols-2 gap-2">
-        {products.map(p => (
-          <button key={p.id} onClick={() => add(p)} disabled={!!activeOrder}
-            className={cn('product-tile rounded-xl p-3 text-left', activeOrder && 'opacity-50')}>
-            <p className="text-sm font-bold text-slate-800 leading-tight">{p.name}</p>
-            <p className="text-brand-600 font-mono font-bold text-sm mt-2">{formatCurrency(p.price)}</p>
-            {cart.find(c => c.id === p.id) && (
-              <Badge variant="amber" className="mt-2">{cart.find(c => c.id === p.id)!.qty}</Badge>
-            )}
-          </button>
-        ))}
+      <div className="p-4 space-y-6">
+        {categories.length > 0
+          ? categories.map((cat) => {
+              const items = products.filter((p) => p.category_id === cat.id)
+              if (!items.length) return null
+              return (
+                <section key={cat.id}>
+                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">{cat.name}</h2>
+                  {renderProductGrid(items)}
+                </section>
+              )
+            })
+          : renderProductGrid(products)}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-command-border p-4 shadow-panel z-20">
         {cart.length > 0 && !activeOrder && (
           <div className="mb-3 space-y-1 max-h-20 overflow-y-auto">
-            {cart.map(i => (
+            {cart.map((i) => (
               <div key={i.id} className="flex justify-between items-center text-xs">
                 <span>{i.name} ×{i.qty}</span>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => updateQty(i.id, -1)} className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center"><Minus size={10} /></button>
-                  <button onClick={() => updateQty(i.id, 1)} className="w-6 h-6 rounded bg-brand-100 flex items-center justify-center"><Plus size={10} /></button>
+                  <button
+                    onClick={() => updateQty(i.id, -1)}
+                    className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center"
+                  >
+                    <Minus size={10} />
+                  </button>
+                  <button
+                    onClick={() => updateQty(i.id, 1)}
+                    className="w-6 h-6 rounded bg-brand-100 flex items-center justify-center"
+                  >
+                    <Plus size={10} />
+                  </button>
                   <span className="font-mono w-14 text-right">{formatCurrency(i.price * i.qty)}</span>
                 </div>
               </div>
@@ -179,10 +258,26 @@ export default function ComensalPWA() {
             </Button>
           )}
         </div>
-        <button className="w-full mt-2 text-xs text-brand-600 flex items-center justify-center gap-1" onClick={() => toast('+20 puntos de lealtad', 'success')}>
+        <button
+          className="w-full mt-2 text-xs text-brand-600 flex items-center justify-center gap-1"
+          onClick={() => toast('+20 puntos de lealtad', 'success')}
+        >
           <Star size={12} /> Registrarme y ganar puntos
         </button>
       </div>
     </div>
   )
+}
+
+export default function ComensalPWA() {
+  const [params] = useSearchParams()
+  useComensalManifest()
+
+  const mesaParam = params.get('mesa')
+  const mesaNum = mesaParam ? Number(mesaParam) : NaN
+  const hasValidMesa = mesaParam && !Number.isNaN(mesaNum) && mesaNum > 0
+
+  if (!hasValidMesa) return <ComensalWelcome />
+
+  return <ComensalMenuView mesa={mesaNum} />
 }

@@ -1,0 +1,19 @@
+{
+  "name": "Menú · IA·RESTAURANT",
+  "short_name": "Menú",
+  "description": "Menú digital y pedidos por mesa",
+  "start_url": "/comensal",
+  "scope": "/comensal",
+  "display": "standalone",
+  "background_color": "#FFF8F0",
+  "theme_color": "#F59E0B",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

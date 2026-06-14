@@ -1,10 +1,10 @@
 import { localDb } from '@/lib/localDb'
 import { generateFolio } from '@/lib/utils'
-import { DEMO_SUCURSAL_ID, DEMO_TENANT_ID } from '@/lib/config'
+import { DEMO_SUCURSAL_ID, DEMO_TENANT_ID, isSupabaseConfigured } from '@/lib/config'
+import { orderService } from '@/services/orderService'
+import { tableService } from '@/services/tableService'
 import type { QROrder } from '@/types/qrFlow'
 import type { Order, OrderItem } from '@/types'
-
-const TAX_RATE = 0.16
 
 export const qrFlowService = {
   async pushToKitchen(qrOrder: QROrder): Promise<string> {
@@ -30,7 +30,7 @@ export const qrFlowService = {
       updated_at: now,
     }
 
-    const items: OrderItem[] = qrOrder.items.map(item => ({
+    const items: OrderItem[] = qrOrder.items.map((item) => ({
       id: crypto.randomUUID(),
       order_id: orderId,
       product_id: item.product_id,
@@ -44,7 +44,7 @@ export const qrFlowService = {
     await localDb.saveOrder({ ...order, items }, items)
 
     const tables = await localDb.getTables(DEMO_TENANT_ID, DEMO_SUCURSAL_ID)
-    const table = tables.find(t => t.id === qrOrder.table_id)
+    const table = tables.find((t) => t.id === qrOrder.table_id)
     if (table) {
       await localDb.updateTable({
         ...table,
@@ -53,6 +53,18 @@ export const qrFlowService = {
         assigned_waiter_id: qrOrder.waiter_id,
         opened_at: table.opened_at || now,
       })
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        const remote = await orderService.createOrder(order, items)
+        if (table) {
+          await tableService.updateTableStatus(table.id, 'ocupada', remote.id)
+        }
+        return remote.id
+      } catch {
+        // Local copy already saved; sync queue may retry later
+      }
     }
 
     return orderId
