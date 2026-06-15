@@ -7,6 +7,11 @@ export const catalogService = {
       .from('categories').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('sort_order')
     return data || []
   },
+  async createCategory(category: Partial<Category>): Promise<Category> {
+    const { data, error } = await supabase.from('categories').insert(category).select().single()
+    if (error) throw error
+    return data
+  },
   async getProducts(tenantId: string, categoryId?: string): Promise<Product[]> {
     let q = supabase.from('products').select('*, category:categories(*)').eq('tenant_id', tenantId).eq('is_active', true)
     if (categoryId) q = q.eq('category_id', categoryId)

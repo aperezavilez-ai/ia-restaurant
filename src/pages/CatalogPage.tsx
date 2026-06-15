@@ -19,6 +19,10 @@ export default function CatalogPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [categoryName, setCategoryName] = useState('')
+  const [categoryColor, setCategoryColor] = useState('#f59000')
+  const [savingCategory, setSavingCategory] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [form, setForm] = useState({ name: '', price: '', cost: '', category_id: '', image_url: '' })
   const [saving, setSaving] = useState(false)
@@ -119,8 +123,66 @@ export default function CatalogPage() {
 
   const margin = (price: number, cost: number) => price > 0 ? Math.round((1 - cost / price) * 100) : 0
 
+  const CATEGORY_COLORS = ['#f59000', '#16213e', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#a855f7']
+
+  const openNewCategory = () => {
+    setCategoryName('')
+    setCategoryColor(CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length])
+    setShowCategoryModal(true)
+  }
+
+  const handleCreateCategory = async () => {
+    if (!ctx || !categoryName.trim()) return
+    setSavingCategory(true)
+    try {
+      const created = await catalogRepository.createCategory(ctx, {
+        name: categoryName,
+        color: categoryColor,
+      })
+      toast(`Categoría "${created.name}" creada`, 'success')
+      setShowCategoryModal(false)
+      await load()
+      setForm(f => ({ ...f, category_id: created.id }))
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo crear la categoría', 'error')
+    } finally {
+      setSavingCategory(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Categorías del menú</p>
+              <p className="text-xs text-slate-500">Alta aquí — aparecen al crear o editar productos</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={openNewCategory}>
+              <Plus size={14} /> Nueva categoría
+            </Button>
+          </div>
+        </CardHeader>
+        <CardBody>
+          {categories.length === 0 ? (
+            <p className="text-sm text-slate-500">Sin categorías. Crea la primera para organizar tu menú.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {categories.map(c => (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-command-border bg-white text-sm font-semibold text-slate-800"
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                  {c.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -174,9 +236,19 @@ export default function CatalogPage() {
             <Input label="Costo" type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Categoría</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-slate-700">Categoría</label>
+              <button
+                type="button"
+                onClick={openNewCategory}
+                className="text-xs font-semibold text-brand-600 hover:underline"
+              >
+                + Nueva categoría
+              </button>
+            </div>
             <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
               className="w-full rounded-xl border border-command-border bg-white text-slate-800 px-3 py-2.5 text-sm">
+              {categories.length === 0 && <option value="">Sin categorías — crea una primero</option>}
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -221,7 +293,41 @@ export default function CatalogPage() {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button className="flex-1" loading={saving} onClick={handleSave}>Guardar</Button>
+            <Button className="flex-1" loading={saving} onClick={handleSave} disabled={!categories.length}>Guardar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={showCategoryModal} onClose={() => setShowCategoryModal(false)} title="Nueva categoría" size="sm">
+        <div className="p-5 space-y-4">
+          <Input
+            label="Nombre de la categoría"
+            placeholder="Ej. Barra Caliente, Souvenirs, Bebidas..."
+            value={categoryName}
+            onChange={e => setCategoryName(e.target.value)}
+          />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Color</label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_COLORS.map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setCategoryColor(color)}
+                  className={cn(
+                    'w-9 h-9 rounded-xl border-2 transition-all',
+                    categoryColor === color ? 'border-slate-800 scale-110' : 'border-transparent'
+                  )}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setShowCategoryModal(false)}>Cancelar</Button>
+            <Button className="flex-1" loading={savingCategory} onClick={handleCreateCategory} disabled={!categoryName.trim()}>
+              Crear categoría
+            </Button>
           </div>
         </div>
       </Modal>
