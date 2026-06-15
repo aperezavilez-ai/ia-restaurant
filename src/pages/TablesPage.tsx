@@ -5,7 +5,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
-import { RefreshCw, LayoutGrid, Map as MapIcon, Split, UserCheck, ArrowRightLeft, Merge, ShoppingBag, UtensilsCrossed, Loader2, Plus } from 'lucide-react'
+import { RefreshCw, LayoutGrid, Map as MapIcon, Split, UserCheck, ArrowRightLeft, Merge, ShoppingBag, UtensilsCrossed, Loader2, Plus, CreditCard } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useOpsSync } from '@/hooks/useOpsSync'
@@ -16,6 +16,7 @@ import { SEED_STAFF } from '@/data/seed'
 import { toast } from '@/components/ui/Toast'
 import { TableCard } from '@/components/tables/TableCard'
 import { sameOrders, sameTables } from '@/lib/opsEquality'
+import { usePOSStore } from '@/store/posStore'
 import type { RestaurantTable, TableStatus, Order, TableArea } from '@/types'
 
 const statusLabel: Record<TableStatus, string> = {
@@ -209,6 +210,17 @@ export default function TablesPage() {
     navigate(`/app/pos?mesa=${table.number}`)
   }
 
+  const goToCollect = (table: RestaurantTable) => {
+    const order = getOrder(table.id)
+    if (!order) {
+      toast('No hay orden activa en esta mesa. Usa POS para crear la venta.', 'error')
+      return
+    }
+    usePOSStore.getState().loadFromOrder(order, { id: table.id, number: table.number })
+    navigate(`/app/pos?mesa=${table.number}&cobrar=1`)
+    setSelected(null)
+  }
+
   const openSplit = async () => {
     if (!ctx || !selected) return
     const order = getOrder(selected.id)
@@ -375,6 +387,23 @@ export default function TablesPage() {
               </div>
             )}
 
+            {selected.status === 'cobro_pendiente' && !getOrder(selected.id) && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Esta mesa está marcada por cobrar pero no tiene orden activa. Abre la mesa o crea la venta en POS.
+              </p>
+            )}
+
+            {(selected.status === 'cobro_pendiente' || getOrder(selected.id)) && getOrder(selected.id) && (
+              <div className="space-y-2">
+                <Button className="w-full" onClick={() => goToCollect(selected)}>
+                  <CreditCard size={14} /> Cobrar cuenta · {formatCurrency(getOrder(selected.id)!.total)}
+                </Button>
+                <p className="text-[10px] text-slate-500 text-center">
+                  Abre caja en Caja si está cerrada → elige método de pago en POS
+                </p>
+              </div>
+            )}
+
             {selected.assigned_waiter_id && (
               <p className="text-sm text-slate-600">Mesero: <strong>{getWaiterName(selected.assigned_waiter_id)}</strong></p>
             )}
@@ -390,7 +419,7 @@ export default function TablesPage() {
 
             <div className="grid grid-cols-2 gap-2">
               <Button variant="secondary" onClick={() => goToPOS(selected)}>
-                <ShoppingBag size={14} /> Ir a POS
+                <ShoppingBag size={14} /> {selected.status === 'cobro_pendiente' ? 'POS (agregar)' : 'Ir a POS'}
               </Button>
               {(selected.status === 'libre' || selected.status === 'reservada') && (
                 <Button variant="outline" onClick={openTable}>

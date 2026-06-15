@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import type { Order } from '@/types'
 
 export interface POSCartItem {
   lineId: string
@@ -20,6 +21,8 @@ interface POSState {
   discountPercent: number
   discountFixed: number
   promoCode: string | null
+  existingOrderId: string | null
+  existingOrderFolio: string | null
   setTable: (id: string | null, number: number | null) => void
   setGuests: (n: number) => void
   setDiscount: (percent: number, fixed: number, promo?: string | null) => void
@@ -27,6 +30,7 @@ interface POSState {
   updateQty: (lineId: string, delta: number) => void
   updateNotes: (lineId: string, notes: string) => void
   removeLine: (lineId: string) => void
+  loadFromOrder: (order: Order, table?: { id: string; number: number }) => void
   clearCart: () => void
 }
 
@@ -44,6 +48,8 @@ export const usePOSStore = create<POSState>()(
       discountPercent: 0,
       discountFixed: 0,
       promoCode: null,
+      existingOrderId: null,
+      existingOrderFolio: null,
 
       setTable: (id, number) => set({ tableId: id, tableNumber: number }),
       setGuests: (guests) => set({ guests: Math.max(1, guests) }),
@@ -95,11 +101,38 @@ export const usePOSStore = create<POSState>()(
 
       removeLine: (lineId) => set(s => ({ cart: s.cart.filter(c => c.lineId !== lineId) })),
 
+      loadFromOrder: (order, table) => {
+        const cart: POSCartItem[] = (order.items || []).map(item => ({
+          lineId: item.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          category: '',
+          notes: item.notes,
+        }))
+        const subtotal = order.subtotal || cart.reduce((s, i) => s + i.unit_price * i.quantity, 0)
+        const discountFixed = Math.min(subtotal, order.discount || 0)
+        set({
+          cart,
+          tableId: table?.id ?? order.table_id ?? null,
+          tableNumber: table?.number ?? null,
+          guests: order.guests ?? 1,
+          discountPercent: 0,
+          discountFixed,
+          promoCode: null,
+          existingOrderId: order.id,
+          existingOrderFolio: order.folio,
+        })
+      },
+
       clearCart: () => set({
         cart: [],
         discountPercent: 0,
         discountFixed: 0,
         promoCode: null,
+        existingOrderId: null,
+        existingOrderFolio: null,
       }),
     }),
     {
@@ -113,6 +146,8 @@ export const usePOSStore = create<POSState>()(
         discountPercent: s.discountPercent,
         discountFixed: s.discountFixed,
         promoCode: s.promoCode,
+        existingOrderId: s.existingOrderId,
+        existingOrderFolio: s.existingOrderFolio,
       }),
     }
   )

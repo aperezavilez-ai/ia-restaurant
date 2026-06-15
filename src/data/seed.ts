@@ -116,9 +116,11 @@ export const SEED_TABLES: RestaurantTable[] = [
     capacity: i % 3 === 0 ? 6 : 4,
     status: tableStatuses[i],
     area: SEED_AREAS[0],
-    current_order_id: i === 4 ? 'ord-1' : undefined,
-    assigned_waiter_id: tableStatuses[i] === 'ocupada' ? 'user-mesero' : undefined,
-    opened_at: tableStatuses[i] === 'ocupada' ? new Date(Date.now() - 32 * 60000).toISOString() : undefined,
+    current_order_id: i === 4 ? 'ord-1' : i === 5 ? 'ord-3' : undefined,
+    assigned_waiter_id: tableStatuses[i] === 'ocupada' || tableStatuses[i] === 'cobro_pendiente' ? 'user-mesero' : undefined,
+    opened_at: tableStatuses[i] === 'ocupada' || tableStatuses[i] === 'cobro_pendiente'
+      ? new Date(Date.now() - (i === 5 ? 45 : 32) * 60000).toISOString()
+      : undefined,
   })),
   ...Array.from({ length: 6 }, (_, i) => ({
     id: `t${i + 9}`,
@@ -149,9 +151,9 @@ export const SEED_ORDERS: Order[] = [
     guests: 2, created_at: new Date(now - 3 * 60000).toISOString(), updated_at: new Date(now - 3 * 60000).toISOString(),
   },
   {
-    id: 'ord-3', tenant_id: T, sucursal_id: S, folio: 'ORD-20260611-0003',
+    id: 'ord-3', tenant_id: T, sucursal_id: S, table_id: 't6', folio: 'ORD-20260611-0003',
     status: 'lista', waiter_id: 'user-mesero', subtotal: 129.31, tax: 20.69, discount: 0, total: 150,
-    guests: 2, created_at: new Date(now - 18 * 60000).toISOString(), updated_at: new Date(now - 1 * 60000).toISOString(),
+    guests: 4, created_at: new Date(now - 18 * 60000).toISOString(), updated_at: new Date(now - 1 * 60000).toISOString(),
   },
 ]
 

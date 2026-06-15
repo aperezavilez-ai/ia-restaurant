@@ -68,6 +68,8 @@ export default function POSPage() {
   const discountPercent = usePOSStore(s => s.discountPercent)
   const discountFixed = usePOSStore(s => s.discountFixed)
   const promoCode = usePOSStore(s => s.promoCode)
+  const existingOrderId = usePOSStore(s => s.existingOrderId)
+  const existingOrderFolio = usePOSStore(s => s.existingOrderFolio)
   const addItem = usePOSStore(s => s.addItem)
   const updateQty = usePOSStore(s => s.updateQty)
   const updateNotes = usePOSStore(s => s.updateNotes)
@@ -94,10 +96,14 @@ export default function POSPage() {
 
   useEffect(() => {
     const mesa = searchParams.get('mesa')
+    const cobrar = searchParams.get('cobrar')
     if (!mesa || !tables.length) return
     const t = tables.find(tb => String(tb.number) === mesa)
     if (t) setTable(t.id, t.number)
-  }, [searchParams, tables, setTable])
+    if (cobrar === '1' && existingOrderId && cart.length > 0) {
+      toast(`Cuenta ${existingOrderFolio || ''} lista para cobrar`, 'success')
+    }
+  }, [searchParams, tables, setTable, existingOrderId, existingOrderFolio, cart.length])
 
   useEffect(() => {
     if (cart.length === 0) { setAiTip(''); return }
@@ -203,18 +209,28 @@ export default function POSPage() {
       const methodMap: Record<string, PaymentMethod> = {
         efectivo: 'efectivo', tarjeta: 'tarjeta', digital: 'transferencia', mixto: 'mixto',
       }
-      const { order, payment } = await orderRepository.createOrderWithPayment(
-        ctx, cartLines(), methodMap[payMethod],
-        {
-          cashReceived: Number(cashReceived),
-          tableId: tableId || undefined,
-          discount,
-          guests,
-          promoCode: promoCode || undefined,
-          mixedCash: payMethod === 'mixto' ? Number(mixedCash) : undefined,
-          mixedCard: payMethod === 'mixto' ? Number(mixedCard) : undefined,
-        }
-      )
+      const payOptions = {
+        cashReceived: Number(cashReceived),
+        tableId: tableId || undefined,
+        discount,
+        guests,
+        promoCode: promoCode || undefined,
+        mixedCash: payMethod === 'mixto' ? Number(mixedCash) : undefined,
+        mixedCard: payMethod === 'mixto' ? Number(mixedCard) : undefined,
+      }
+      const { order, payment } = existingOrderId
+        ? await orderRepository.completeOrderPayment(
+            ctx, existingOrderId, methodMap[payMethod],
+            {
+              cashReceived: payOptions.cashReceived,
+              discount: payOptions.discount,
+              mixedCash: payOptions.mixedCash,
+              mixedCard: payOptions.mixedCard,
+            }
+          )
+        : await orderRepository.createOrderWithPayment(
+            ctx, cartLines(), methodMap[payMethod], payOptions
+          )
       setTicketTableLabel(tableNumber ? `Mesa ${tableNumber}` : 'Mostrador')
       setTicketOrder(order)
       setTicketPayment(payment)
@@ -282,6 +298,13 @@ export default function POSPage() {
         {aiTip && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-xs text-ai-600">
             <Sparkles size={14} /> {aiTip}
+          </div>
+        )}
+
+        {existingOrderId && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+            <CreditCard size={14} />
+            Cobrando cuenta existente {existingOrderFolio ? `· ${existingOrderFolio}` : ''}
           </div>
         )}
 
@@ -384,11 +407,13 @@ export default function POSPage() {
             <span>TOTAL</span><span className="text-brand-600">{formatCurrency(total)}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <Button variant="outline" size="md" className="h-11" disabled={!cart.length || loading} onClick={handleSendKitchen}>
-              <ChefHat size={16} /> Cocina
-            </Button>
-            <Button size="md" className="h-11" disabled={!cart.length} onClick={openPayModal}>
-              <CreditCard size={16} /> Cobrar
+            {!existingOrderId && (
+              <Button variant="outline" size="md" className="h-11" disabled={!cart.length || loading} onClick={handleSendKitchen}>
+                <ChefHat size={16} /> Cocina
+              </Button>
+            )}
+            <Button size="md" className={cn('h-11', existingOrderId && 'col-span-2')} disabled={!cart.length} onClick={openPayModal}>
+              <CreditCard size={16} /> {existingOrderId ? 'Cobrar cuenta' : 'Cobrar'}
             </Button>
           </div>
         </div>

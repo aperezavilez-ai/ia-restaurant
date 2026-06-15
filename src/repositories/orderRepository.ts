@@ -185,6 +185,114 @@ export const orderRepository = {
     return { order: { ...order, items }, payment, payments }
   },
 
+  async completeOrderPayment(
+    ctx: TenantContext,
+    orderId: string,
+    method: PaymentMethod,
+    options?: {
+      cashReceived?: number
+      mixedCash?: number
+      mixedCard?: number
+      discount?: number
+    }
+  ): Promise<{ order: Order; payment: Payment; payments?: Payment[] }> {
+    const orders = await localDb.getOrders(ctx.tenantId, ctx.sucursalId)
+    const found = orders.find(o => o.id === orderId)
+    if (!found) throw new Error('Orden no encontrada')
+    if (found.status === 'cobrada') throw new Error('Esta orden ya fue cobrada')
+    if (found.status === 'cancelada') throw new Error('Esta orden está cancelada')
+
+    const discount = Math.min(found.subtotal, options?.discount ?? found.discount ?? 0)
+    const total = found.total
+    const now = new Date().toISOString()
+
+    const order: Order = {
+      ...found,
+      status: 'cobrada',
+      cashier_id: ctx.userId,
+      discount,
+      total,
+      updated_at: now,
+    }
+
+    const change = method === 'efectivo' && options?.cashReceived
+      ? Math.max(0, options.cashReceived - total)
+      : 0
+
+    const payments: Payment[] = []
+
+    if (method === 'mixto' && options?.mixedCash != null && options?.mixedCard != null) {
+      payments.push({
+        id: crypto.randomUUID(),
+        order_id: orderId,
+        tenant_id: ctx.tenantId,
+        method: 'efectivo',
+        amount: options.mixedCash,
+        created_at: now,
+        reference: 'mixto-efectivo',
+      })
+      payments.push({
+        id: crypto.randomUUID(),
+        order_id: orderId,
+        tenant_id: ctx.tenantId,
+        method: 'tarjeta',
+        amount: options.mixedCard,
+        created_at: now,
+        reference: 'mixto-tarjeta',
+      })
+    } else {
+      payments.push({
+        id: crypto.randomUUID(),
+        order_id: orderId,
+        tenant_id: ctx.tenantId,
+        method,
+        amount: total,
+        change_amount: change,
+        created_at: now,
+      })
+    }
+
+    const payment = payments[0]
+    const items = found.items || []
+
+    await localDb.updateOrder(order)
+    for (const p of payments) await localDb.savePayment(p)
+    opsBroadcast.notify()
+
+    let tablePatch: RestaurantTable | undefined
+    if (order.table_id) {
+      const tables = await localDb.getTables(ctx.tenantId, ctx.sucursalId)
+      const table = tables.find(t => t.id === order.table_id)
+      if (table) {
+        tablePatch = {
+          ...table,
+          status: 'libre',
+          current_order_id: undefined,
+          opened_at: undefined,
+        }
+        await localDb.updateTable(tablePatch)
+        opsBroadcast.notify()
+      }
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await orderService.updateOrderStatus(orderId, 'cobrada')
+        for (const p of payments) await paymentService.createPayment(p)
+        if (tablePatch) {
+          await tableService.updateTableStatus(tablePatch.id, tablePatch.status, undefined)
+        }
+      } catch {
+        await localDb.enqueueSync({ table: 'orders', operation: 'update', payload: order as never })
+        for (const p of payments) {
+          await localDb.enqueueSync({ table: 'payments', operation: 'insert', payload: p as never })
+        }
+      }
+    }
+
+    return { order: { ...order, items }, payment, payments }
+  },
+
   async sendToKitchen(ctx: TenantContext, lines: CartLine[], tableId?: string): Promise<Order> {
     const subtotal = lines.reduce((s, l) => s + l.unit_price * l.quantity, 0)
     const taxRate = ctx.taxRate ?? TAX_RATE
