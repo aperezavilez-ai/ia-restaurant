@@ -48,6 +48,10 @@ export const authRepository = {
         if (!tenant || !sucursal) throw new Error('Tenant o sucursal no encontrados')
         return { user: profile, tenant, sucursal }
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (message.toLowerCase().includes('failed to fetch')) {
+          throw new Error('Sin conexión al servidor. Revisa tu red o intenta de nuevo.')
+        }
         throw normalizeLoginError(normalizedEmail, err)
       }
     }
