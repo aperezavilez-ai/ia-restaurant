@@ -154,9 +154,9 @@ export const DEMO_AUDIT_LOGS = [
 ]
 
 export const PRODUCTION_CENTERS = [
-  { id: 'cocina_caliente', label: 'Cocina Caliente', color: '#F97316', products: ['Tacos', 'Platillos', 'Entradas'] },
-  { id: 'cocina_fria', label: 'Cocina Fría', color: '#22C55E', products: ['Ensaladas', 'Entradas frías'] },
-  { id: 'barra', label: 'Barra', color: '#8B5CF6', products: ['Cocteles', 'Bebidas', 'Cerveza'] },
-  { id: 'cafeteria', label: 'Cafetería', color: '#92400E', products: ['Café', 'Té'] },
+  { id: 'barra_caliente', label: 'Barra Caliente', color: '#F97316', products: ['Tacos', 'Platillos', 'Entradas'] },
+  { id: 'barra_fria', label: 'Barra Fría', color: '#22C55E', products: ['Cocteles'] },
+  { id: 'bebidas', label: 'Bebidas', color: '#0EA5E9', products: ['Bebidas', 'Cerveza'] },
   { id: 'postres', label: 'Postres', color: '#EC4899', products: ['Postres'] },
+  { id: 'souvenirs', label: 'Souvenirs', color: '#A855F7', products: ['Souvenirs'] },
 ]

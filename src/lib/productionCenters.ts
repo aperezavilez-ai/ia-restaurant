@@ -1,8 +1,10 @@
 export const KITCHEN_CENTERS = [
   { id: 'all', label: 'Todos', categories: [] as string[] },
-  { id: 'cocina_caliente', label: 'Cocina Caliente', categories: ['Tacos', 'Platillos', 'Entradas'] },
-  { id: 'barra', label: 'Barra', categories: ['Bebidas', 'Cocteles'] },
+  { id: 'barra_caliente', label: 'Barra Caliente', categories: ['Tacos', 'Platillos', 'Entradas'] },
+  { id: 'barra_fria', label: 'Barra Fría', categories: ['Cocteles'] },
+  { id: 'bebidas', label: 'Bebidas', categories: ['Bebidas'] },
   { id: 'postres', label: 'Postres', categories: ['Postres'] },
+  { id: 'souvenirs', label: 'Souvenirs', categories: ['Souvenirs'] },
 ] as const
 
 export type KitchenCenterId = (typeof KITCHEN_CENTERS)[number]['id']
