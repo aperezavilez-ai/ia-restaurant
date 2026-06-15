@@ -2,12 +2,17 @@ import { supabase } from '@/lib/supabase'
 import { getAppUrl } from '@/lib/config'
 import type { User } from '@/types'
 
+const appUrl = () => getAppUrl()
+
 export const authService = {
   async signUp(email: string, password: string, fullName?: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: `${appUrl()}/login`,
+      },
     })
     if (error) throw error
     return data

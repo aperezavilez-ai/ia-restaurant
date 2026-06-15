@@ -2,6 +2,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.iarestaurant.mx" }],
+      "destination": "https://iarestaurant.mx/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/((?!api|assets|sw\\.js|workbox-.*|registerSW\\.js|manifest\\.webmanifest|favicon\\.svg).*)", "destination": "/index.html" }
   ],

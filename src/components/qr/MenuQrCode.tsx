@@ -1,5 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { cn } from '@/lib/utils'
+import { getAppUrl } from '@/lib/config'
 
 interface MenuQrCodeProps {
   url: string
@@ -29,6 +30,6 @@ export function MenuQrCode({ url, size = 160, className, label, id }: MenuQrCode
 }
 
 export function comensalMenuUrl(mesa: number, origin?: string) {
-  const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
-  return `${base}/comensal?mesa=${mesa}`
+  const base = origin || getAppUrl()
+  return `${base.replace(/\/$/, '')}/comensal?mesa=${mesa}`
 }

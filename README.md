@@ -32,7 +32,7 @@ Guía paso a paso: **[docs/DESPLIEGUE-COMPLETO.md](docs/DESPLIEGUE-COMPLETO.md)*
 Resumen:
 1. Push del código a GitHub
 2. Importar repo en Vercel (build: `npm run build`, output: `dist`)
-3. Variables en Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`
+3. Variables en Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL=https://iarestaurant.mx`
 4. Migraciones SQL 001–004 en Supabase + Auth URLs + Realtime
 
 ### 5. Cuentas demo (sin configurar Supabase)
