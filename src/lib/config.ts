@@ -2,8 +2,8 @@ export const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001'
 export const DEMO_SUCURSAL_ID = '00000000-0000-0000-0000-000000000002'
 export const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000003'
 
-/** Dominio de producción (Vercel custom domain) */
-export const PRODUCTION_APP_URL = 'https://iarestaurant.mx'
+/** Dominio de producción (Vercel: apex redirige a www) */
+export const PRODUCTION_APP_URL = 'https://www.iarestaurant.mx'
 
 export function isSupabaseConfigured(): boolean {
   const url = import.meta.env.VITE_SUPABASE_URL
@@ -31,7 +31,7 @@ export function getAppUrl(): string {
   if (typeof window !== 'undefined') {
     const { origin, hostname } = window.location
     if (hostname === 'iarestaurant.mx' || hostname === 'www.iarestaurant.mx') {
-      return 'https://iarestaurant.mx'
+      return PRODUCTION_APP_URL
     }
     if (hostname.endsWith('.vercel.app') || hostname === 'localhost' || hostname === '127.0.0.1') {
       return origin

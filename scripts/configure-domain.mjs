@@ -9,7 +9,7 @@ import { loadEnv } from './load-env.mjs'
 
 loadEnv()
 
-const DOMAIN = (process.argv[2] || 'https://iarestaurant.mx').replace(/\/$/, '')
+const DOMAIN = (process.argv[2] || 'https://www.iarestaurant.mx').replace(/\/$/, '')
 const PROJECT_REF = process.env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN
 
