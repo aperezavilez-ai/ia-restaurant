@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ModuleLayout } from '@/components/demo/ModuleLayout'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -212,25 +213,54 @@ export function ProductionPage() {
 }
 
 export function PrintingPage() {
-  const printers = [
-    { area: 'Caja', ip: '192.168.1.10', status: 'conectada', jobs: 142 },
-    { area: 'Cocina caliente', ip: '192.168.1.11', status: 'conectada', jobs: 89 },
-    { area: 'Barra', ip: '192.168.1.12', status: 'conectada', jobs: 56 },
-    { area: 'Postres', ip: '192.168.1.13', status: 'desconectada', jobs: 0 },
+  const links = [
+    {
+      title: 'Caja — tickets y QR por mesa',
+      description: 'Imprime o descarga QR de cada mesa y gestiona cortes de caja.',
+      path: '/app/cash',
+      status: 'Activo',
+    },
+    {
+      title: 'Menú QR comensal',
+      description: 'Genera e imprime códigos QR para que los comensales pidan desde el celular.',
+      path: '/app/qr',
+      status: 'Activo',
+    },
+    {
+      title: 'Cocina KDS',
+      description: 'Pantalla de producción con comandas en tiempo real por área.',
+      path: '/app/kitchen',
+      status: 'Activo',
+    },
+    {
+      title: 'POS — ticket de venta',
+      description: 'Al cobrar en POS se genera ticket imprimible para el comensal.',
+      path: '/app/pos',
+      status: 'Activo',
+    },
   ]
+
   return (
-    <ModuleLayout phase={17} title="Impresión avanzada" description="Múltiples impresoras por área con reglas automáticas de impresión.">
+    <ModuleLayout phase={17} title="Impresión y tickets" description="Enlaces a los módulos de impresión que ya funcionan en IA·RESTAURANT.">
       <div className="grid gap-3">
-        {printers.map(p => (
-          <Card key={p.area} className="p-4 flex items-center justify-between">
+        {links.map((item) => (
+          <Card key={item.path} className="p-4 flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="font-bold text-slate-800">{p.area}</p>
-              <p className="text-xs font-mono text-slate-500">{p.ip} · {p.jobs} trabajos hoy</p>
+              <p className="font-bold text-slate-800">{item.title}</p>
+              <p className="text-xs text-slate-500 mt-1">{item.description}</p>
             </div>
-            <Badge variant={p.status === 'conectada' ? 'success' : 'danger'}>{p.status}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="success">{item.status}</Badge>
+              <Link to={item.path}>
+                <Button size="sm" variant="outline">Abrir</Button>
+              </Link>
+            </div>
           </Card>
         ))}
       </div>
+      <p className="text-xs text-slate-500 mt-4">
+        La conexión directa con impresoras térmicas ESC/POS por red (IP) estará disponible en una próxima actualización.
+      </p>
     </ModuleLayout>
   )
 }

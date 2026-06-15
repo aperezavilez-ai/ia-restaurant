@@ -136,7 +136,7 @@ export default function SettingsPage() {
         </CardBody>
       </Card>
 
-      <Card>
+      <Card id="notificaciones">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-brand-50 text-brand-600"><Bell size={18} /></div>

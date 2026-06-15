@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
 import {
-  DEMO_PLANS, DEMO_PERMISSIONS, DEMO_NOTIFICATIONS, DEMO_INTEGRATIONS,
+  DEMO_PLANS, DEMO_PERMISSIONS, DEMO_NOTIFICATIONS,
   DEMO_TICKETS, DEMO_EMPLOYEES, DEMO_WORKFLOWS, DEMO_MARKETPLACE,
   DEMO_SAAS_METRICS, DEMO_AUDIT_LOGS,
 } from '@/data/demoSeed'
@@ -113,26 +113,6 @@ export function NotificationsPage() {
   )
 }
 
-export function IntegrationsPage() {
-  return (
-    <ModuleLayout phase={42} title="Centro de integraciones" description="WhatsApp, Stripe, Mercado Pago, delivery, ERP y más.">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {DEMO_INTEGRATIONS.map(i => (
-          <Card key={i.id} className="p-4">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{i.icon}</span>
-              <div>
-                <p className="font-bold text-slate-800">{i.name}</p>
-                <p className="text-xs text-slate-500">{i.category}</p>
-              </div>
-            </div>
-            <Badge variant={i.status === 'conectado' ? 'success' : i.status === 'disponible' ? 'info' : 'default'} className="mt-3 capitalize">{i.status}</Badge>
-          </Card>
-        ))}
-      </div>
-    </ModuleLayout>
-  )
-}
 
 export function SupportPage() {
   return (

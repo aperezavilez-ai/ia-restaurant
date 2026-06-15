@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CreditCard, Info, Shield, ArrowLeft } from 'lucide-react'
 import { PaymentGatewayCard } from '@/components/payments/PaymentGatewayCard'
 import { PAYMENT_GATEWAYS, SAAS_BILLING_NOTE } from '@/data/paymentGateways'
@@ -8,6 +9,8 @@ import { toast } from '@/components/ui/Toast'
 import type { PaymentGatewayId } from '@/data/paymentGateways'
 
 export default function PaymentGatewaysPage() {
+  const [searchParams] = useSearchParams()
+  const highlightGw = searchParams.get('gw')
   const tenant = useAuthStore((s) => s.tenant)
   const tenantId = tenant?.id || ''
   const preferred = usePaymentGatewayStore((s) => s.getPreferred(tenantId))
@@ -23,6 +26,12 @@ export default function PaymentGatewaysPage() {
       'success',
     )
   }
+
+  useEffect(() => {
+    if (!highlightGw) return
+    const el = document.getElementById(`gateway-${highlightGw}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlightGw])
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -66,12 +75,13 @@ export default function PaymentGatewaysPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PAYMENT_GATEWAYS.map((gw) => (
-          <PaymentGatewayCard
-            key={gw.id}
-            gateway={gw}
-            selected={preferred === gw.id}
-            onSelect={() => handleSelect(gw.id)}
-          />
+          <div key={gw.id} id={`gateway-${gw.id}`} className={highlightGw === gw.id ? 'ring-2 ring-brand-400 rounded-2xl' : ''}>
+            <PaymentGatewayCard
+              gateway={gw}
+              selected={preferred === gw.id}
+              onSelect={() => handleSelect(gw.id)}
+            />
+          </div>
         ))}
       </div>
 

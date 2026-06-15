@@ -34,6 +34,8 @@ const PAGE_META: Record<string, { title: string; zone: string }> = {
   '/app/delivery': { title: 'Delivery', zone: 'OPERACIÓN' },
   '/app/invoicing': { title: 'Facturación', zone: 'FINANZAS' },
   '/app/finance': { title: 'Finanzas', zone: 'FINANZAS' },
+  '/app/integrations': { title: 'Integraciones', zone: 'CONECTIVIDAD' },
+  '/app/printing': { title: 'Impresión', zone: 'OPERACIÓN' },
 }
 
 export function CommandShell() {

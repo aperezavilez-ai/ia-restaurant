@@ -37,10 +37,11 @@ import CustomersPage from '@/pages/CustomersPage'
 import LoyaltyPage from '@/pages/LoyaltyPage'
 import DeliveryPage from '@/pages/DeliveryPage'
 import InvoicingPage from '@/pages/InvoicingPage'
+import IntegrationsPage from '@/pages/IntegrationsPage'
 import FinancePage from '@/pages/FinancePage'
 import {
   SubscriptionsPage, AuditPage, PermissionsPage, NotificationsPage,
-  IntegrationsPage, SupportPage, HRPage, AutomationPage, MarketplacePage,
+  SupportPage, HRPage, AutomationPage, MarketplacePage,
   SaaSOwnerPage, FranchisePage, SecurityPage, APIPage, OnboardingPage,
   VersioningPage, LocalizationPage, DataWarehousePage, BIPage, AntifraudPage,
   CustomerSuccessPage,
