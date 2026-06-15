@@ -1,6 +1,7 @@
 import { useLiveFlowSync } from '@/hooks/useLiveFlowSync'
 import { useLiveFlowStore } from '@/store/liveFlowStore'
 import { QRValidationPanel } from '@/components/qr/QRValidationPanel'
+import { TableQrPrintPanel } from '@/components/qr/TableQrPrintPanel'
 import { Badge } from '@/components/ui/Badge'
 import { PwaBackLink } from '@/components/layout/PageBack'
 import { Vault, Settings } from 'lucide-react'
@@ -51,6 +52,8 @@ export default function CajaPWA() {
               : 'El comensal envía → Directo a cocina + Mesero alerta'}
           </p>
         </div>
+
+        <TableQrPrintPanel compact showManageLink={false} />
 
         <QRValidationPanel />
       </div>

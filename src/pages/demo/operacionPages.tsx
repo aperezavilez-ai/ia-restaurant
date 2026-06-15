@@ -8,11 +8,13 @@ import { useTenantContext } from '@/hooks/useTenantContext'
 import { orderRepository } from '@/repositories/orderRepository'
 import { catalogRepository } from '@/repositories/catalogRepository'
 import { DEMO_PROMOTIONS, DEMO_RESERVATIONS, DEMO_DELIVERIES, PRODUCTION_CENTERS } from '@/data/demoSeed'
-import type { Order, Category } from '@/types'
-import { DEMO_QR_SESSIONS } from '@/data/demoSeed'
 import { Plus, Printer, QrCode, FileText, Download } from 'lucide-react'
 import { MenuSectionNav } from '@/components/menu/MenuSectionNav'
 import { MenuQrCode, comensalMenuUrl } from '@/components/qr/MenuQrCode'
+import { downloadQrSvg, printTableQrSheet, buildTableQrData } from '@/lib/qrExport'
+import { tableRepository } from '@/repositories/tableRepository'
+import { useAuthStore } from '@/store/authStore'
+import type { Order, Category, RestaurantTable } from '@/types'
 import { toast } from '@/components/ui/Toast'
 import { invoiceRepository } from '@/repositories/invoiceRepository'
 import { Modal } from '@/components/ui/Modal'
@@ -234,17 +236,29 @@ export function PrintingPage() {
 }
 
 export function QRMenuPage() {
-  const demoMesas = [5, 12, 4, 10]
+  const ctx = useTenantContext()
+  const { tenant, sucursal } = useAuthStore()
+  const [tables, setTables] = useState<RestaurantTable[]>([])
+
+  useEffect(() => {
+    if (!ctx) return
+    tableRepository.getTables(ctx).then((t) => setTables(t.sort((a, b) => a.number - b.number)))
+  }, [ctx])
+
+  const tenantName = tenant?.name || 'Mi Restaurante'
 
   const downloadQr = (mesa: number) => {
-    const svg = document.getElementById(`qr-mesa-${mesa}`)
-    if (!svg) return
-    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `menu-mesa-${mesa}-qr.svg`
-    a.click()
-    URL.revokeObjectURL(a.href)
+    if (!downloadQrSvg(`qr-mesa-${mesa}`, `qr-mesa-${mesa}.svg`)) {
+      toast('No se pudo descargar', 'error')
+      return
+    }
+    toast(`QR Mesa ${mesa} descargado`, 'success')
+  }
+
+  const printQr = (table: RestaurantTable) => {
+    printTableQrSheet(
+      buildTableQrData(table.number, tenantName, table.area?.name, sucursal?.name),
+    )
   }
 
   return (
@@ -252,43 +266,50 @@ export function QRMenuPage() {
       <MenuSectionNav />
     <ModuleLayout phase={8} title="Menú QR y sesiones" description="Escanea el QR → el comensal arma su pedido → Caja valida → Cocina prepara → Mesero recibe alerta."
       stats={[
-        { label: 'Mesas con QR', value: String(demoMesas.length) },
-        { label: 'Apps QR', value: '4' },
+        { label: 'Mesas con QR', value: String(tables.length) },
+        { label: 'URL base', value: 'comensal?mesa=N' },
       ]}>
       <Card className="p-5 bg-brand-50/50 border-brand-200 mb-4">
-        <p className="font-bold text-slate-800 mb-2">Flujo conectado en demo</p>
+        <p className="font-bold text-slate-800 mb-2">Flujo conectado</p>
         <ol className="text-sm text-slate-600 space-y-1 list-decimal list-inside">
-          <li>Imprime o muestra el QR de cada mesa</li>
+          <li>Imprime o descarga el QR de cada mesa (también desde <strong>Caja</strong>)</li>
           <li>El comensal escanea → <strong>/comensal?mesa=N</strong></li>
-          <li>Abre <strong>/caja</strong> para validar pedidos</li>
+          <li>Abre <strong>/caja</strong> para validar pedidos e imprimir QR</li>
           <li>Abre <strong>/mesero</strong> y <strong>Cocina</strong> para operación</li>
         </ol>
       </Card>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {demoMesas.map(num => {
-          const url = comensalMenuUrl(num)
-          const session = DEMO_QR_SESSIONS.find(s => s.table_number === num)
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {tables.map((table) => {
+          const url = comensalMenuUrl(table.number)
           return (
-            <Card key={num} className="p-4">
+            <Card key={table.id} className="p-4">
               <div className="flex items-start justify-between flex-wrap gap-3">
                 <div className="flex-1 min-w-[140px]">
-                  <p className="font-bold text-lg">Mesa {num}</p>
-                  <p className="text-xs text-slate-500">{session?.area || 'Salón'} · Mesero Demo</p>
+                  <p className="font-bold text-lg">Mesa {table.number}</p>
+                  <p className="text-xs text-slate-500">{table.area?.name || 'Sin área'} · {table.capacity} personas</p>
                   <p className="text-[10px] font-mono text-brand-600 mt-2 break-all">{url}</p>
                 </div>
-                <MenuQrCode id={`qr-mesa-${num}`} url={url} size={120} label={`Mesa ${num}`} />
+                <MenuQrCode id={`qr-mesa-${table.number}`} url={url} size={120} label={`Mesa ${table.number}`} />
               </div>
               <div className="flex gap-2 mt-4 flex-wrap">
-                <a href={url} target="_blank" rel="noreferrer" className="flex-1 min-w-[120px]">
+                <a href={url} target="_blank" rel="noreferrer" className="flex-1 min-w-[100px]">
                   <Button size="sm" className="w-full">Abrir menú</Button>
                 </a>
-                <Button size="sm" variant="outline" className="gap-1" onClick={() => downloadQr(num)}>
+                <Button size="sm" variant="outline" className="gap-1" onClick={() => printQr(table)}>
+                  <Printer size={14} /> Imprimir
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1" onClick={() => downloadQr(table.number)}>
                   <Download size={14} /> SVG
                 </Button>
               </div>
             </Card>
           )
         })}
+        {!tables.length && (
+          <Card className="p-8 col-span-full text-center text-slate-500 text-sm">
+            No hay mesas. Agrégalas en Control de piso.
+          </Card>
+        )}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
         {[

@@ -14,6 +14,7 @@ import { dashboardRepository } from '@/repositories/dashboardRepository'
 import { useOpsDataStore } from '@/store/opsDataStore'
 import type { CashRegister } from '@/types'
 import { QRValidationPanel } from '@/components/qr/QRValidationPanel'
+import { TableQrPrintPanel } from '@/components/qr/TableQrPrintPanel'
 
 export default function CashPage() {
   const ctx = useTenantContext()
@@ -104,6 +105,7 @@ export default function CashPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <PaymentGatewaysPromo />
+      <TableQrPrintPanel />
       <QRValidationPanel />
       <Card>
         <CardHeader>
