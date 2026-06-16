@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { QrCode, ShoppingCart, Bell, CreditCard, Star, Plus, Minus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -26,6 +26,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const LAST_MESA_KEY = 'comensal-last-mesa'
+const LAST_TENANT_KEY = 'comensal-last-tenant'
 
 interface CartLine {
   lineId: string
@@ -38,7 +39,7 @@ interface CartLine {
 
 type ResolvedTable = NonNullable<Awaited<ReturnType<typeof publicMenuService.resolveTableByNumber>>>
 
-function ComensalMenuView({ mesa }: { mesa: number }) {
+function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: string }) {
   const [table, setTable] = useState<ResolvedTable | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -63,16 +64,16 @@ function ComensalMenuView({ mesa }: { mesa: number }) {
 
   useEffect(() => {
     localStorage.setItem(LAST_MESA_KEY, String(mesa))
+    if (tenantHint) localStorage.setItem(LAST_TENANT_KEY, tenantHint)
     if (isSupabaseConfigured()) hydrateFromRemote()
-  }, [mesa, hydrateFromRemote])
+  }, [mesa, tenantHint, hydrateFromRemote])
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([
-      publicMenuService.resolveTableByNumber(mesa),
-    ])
+    Promise.all([publicMenuService.resolveTableByNumber(mesa, tenantHint)])
       .then(async ([tbl]) => {
         setTable(tbl)
+        if (tbl?.tenant_id) localStorage.setItem(LAST_TENANT_KEY, tbl.tenant_id)
         const tenantId = tbl?.tenant_id
         const [menu, name] = await Promise.all([
           publicMenuService.getMenu(tenantId),
@@ -83,7 +84,7 @@ function ComensalMenuView({ mesa }: { mesa: number }) {
         setTenantName(name)
       })
       .finally(() => setLoading(false))
-  }, [mesa])
+  }, [mesa, tenantHint])
 
   useEffect(() => {
     if (activeOrder && !activeOrderId) setActiveOrderId(activeOrder.id)
@@ -321,13 +322,24 @@ function ComensalMenuView({ mesa }: { mesa: number }) {
 
 export default function ComensalPWA() {
   const [params] = useSearchParams()
+  const navigate = useNavigate()
   useComensalManifest()
 
   const mesaParam = params.get('mesa')
+  const tenantHint = params.get('tenant') || undefined
   const mesaNum = mesaParam ? Number(mesaParam) : NaN
   const hasValidMesa = mesaParam && !Number.isNaN(mesaNum) && mesaNum > 0
+  const lastMesa = localStorage.getItem(LAST_MESA_KEY)
+  const lastTenant = localStorage.getItem(LAST_TENANT_KEY)
+
+  useEffect(() => {
+    // If user launches installed app without QR params, restore last visited table.
+    if (hasValidMesa || !lastMesa) return
+    const next = lastTenant ? `/comensal?mesa=${lastMesa}&tenant=${lastTenant}` : `/comensal?mesa=${lastMesa}`
+    navigate(next, { replace: true })
+  }, [hasValidMesa, lastMesa, lastTenant, navigate])
 
   if (!hasValidMesa) return <ComensalWelcome />
 
-  return <ComensalMenuView mesa={mesaNum} />
+  return <ComensalMenuView mesa={mesaNum} tenantHint={tenantHint} />
 }

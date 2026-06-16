@@ -287,7 +287,7 @@ export function QRMenuPage() {
 
   const printQr = (table: RestaurantTable) => {
     printTableQrSheet(
-      buildTableQrData(table.number, tenantName, table.area?.name, sucursal?.name),
+      buildTableQrData(table.number, tenantName, table.tenant_id, table.area?.name, sucursal?.name),
     )
   }
 
@@ -310,7 +310,7 @@ export function QRMenuPage() {
       </Card>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tables.map((table) => {
-          const url = comensalMenuUrl(table.number)
+          const url = comensalMenuUrl(table.number, undefined, table.tenant_id)
           return (
             <Card key={table.id} className="p-4">
               <div className="flex items-start justify-between flex-wrap gap-3">

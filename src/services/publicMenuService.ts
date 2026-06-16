@@ -57,20 +57,17 @@ export const publicMenuService = {
     return 'IA·RESTAURANT'
   },
 
-  async resolveTableByNumber(num: number) {
+  async resolveTableByNumber(num: number, tenantId?: string) {
     if (!isSupabaseConfigured()) return null
 
     try {
-      const { data: table } = await withTimeout(
-        Promise.resolve(
-          supabase
-            .from('tables')
-            .select('id, number, area_id, tenant_id, sucursal_id, assigned_waiter_id, area:table_areas(name)')
-            .eq('number', num)
-            .maybeSingle()
-        ),
-        5000
-      )
+      let query = supabase
+        .from('tables')
+        .select('id, number, area_id, tenant_id, sucursal_id, assigned_waiter_id, area:table_areas(name)')
+        .eq('number', num)
+      if (tenantId) query = query.eq('tenant_id', tenantId)
+
+      const { data: table } = await withTimeout(Promise.resolve(query.maybeSingle()), 5000)
 
       if (!table) return null
 

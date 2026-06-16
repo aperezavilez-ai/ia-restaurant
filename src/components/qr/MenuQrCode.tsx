@@ -29,7 +29,10 @@ export function MenuQrCode({ url, size = 160, className, label, id }: MenuQrCode
   )
 }
 
-export function comensalMenuUrl(mesa: number, origin?: string) {
+export function comensalMenuUrl(mesa: number, origin?: string, tenantId?: string) {
   const base = origin || getAppUrl()
-  return `${base.replace(/\/$/, '')}/comensal?mesa=${mesa}`
+  const url = new URL(`${base.replace(/\/$/, '')}/comensal`)
+  url.searchParams.set('mesa', String(mesa))
+  if (tenantId) url.searchParams.set('tenant', tenantId)
+  return url.toString()
 }

@@ -19,7 +19,7 @@ export default function GuestMenuPreviewPage() {
   const [loading, setLoading] = useState(true)
   const [tenantName, setTenantName] = useState('IA·RESTAURANT')
 
-  const demoUrl = comensalMenuUrl(DEMO_MESA)
+  const demoUrl = comensalMenuUrl(DEMO_MESA, undefined, tenant?.id)
 
   useEffect(() => {
     let cancelled = false

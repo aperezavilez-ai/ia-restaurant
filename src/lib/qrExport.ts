@@ -102,12 +102,13 @@ export function printTableQrSheet(data: TableQrPrintData) {
 export function buildTableQrData(
   mesa: number,
   tenantName: string,
+  tenantId?: string,
   areaName?: string,
   sucursalName?: string,
 ): TableQrPrintData {
   return {
     mesa,
-    url: comensalMenuUrl(mesa),
+    url: comensalMenuUrl(mesa, undefined, tenantId),
     tenantName,
     areaName,
     sucursalName,

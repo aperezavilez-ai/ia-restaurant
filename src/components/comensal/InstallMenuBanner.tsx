@@ -30,7 +30,7 @@ export function InstallMenuBanner() {
       </button>
       <p className="text-xs font-bold text-slate-800 pr-6">Instala el menú en tu celular</p>
       <p className="text-[11px] text-slate-600 mt-1">
-        Acceso rápido sin buscar el QR cada vez. Al abrir, escanea el código de tu mesa.
+        Acceso rápido sin buscar el QR cada vez. Si escaneas otro QR, la app te cambia sola a esa mesa.
       </p>
       <div className="flex gap-2 mt-3 flex-wrap">
         {canInstall && (

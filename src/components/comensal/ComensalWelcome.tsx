@@ -5,11 +5,13 @@ import { InstallMenuBanner } from '@/components/comensal/InstallMenuBanner'
 import { publicMenuService } from '@/services/publicMenuService'
 
 const LAST_MESA_KEY = 'comensal-last-mesa'
+const LAST_TENANT_KEY = 'comensal-last-tenant'
 
 export function ComensalWelcome() {
   const [tenantName, setTenantName] = useState('IA·RESTAURANT')
   const [loading, setLoading] = useState(true)
   const lastMesa = localStorage.getItem(LAST_MESA_KEY)
+  const lastTenant = localStorage.getItem(LAST_TENANT_KEY)
 
   useEffect(() => {
     publicMenuService.getTenantName()
@@ -41,7 +43,7 @@ export function ComensalWelcome() {
 
             {lastMesa && (
               <Link
-                to={`/comensal?mesa=${lastMesa}`}
+                to={lastTenant ? `/comensal?mesa=${lastMesa}&tenant=${lastTenant}` : `/comensal?mesa=${lastMesa}`}
                 className="mt-6 w-full py-3 rounded-xl bg-brand-500 text-white font-bold text-sm hover:bg-brand-600 transition-colors"
               >
                 Continuar en mesa {lastMesa}

@@ -41,7 +41,7 @@ export function TableQrPrintPanel({ compact, showManageLink = true }: TableQrPri
   )
 
   const svgId = selected ? `qr-print-mesa-${selected.number}` : ''
-  const url = selected ? comensalMenuUrl(selected.number) : ''
+  const url = selected ? comensalMenuUrl(selected.number, undefined, selected.tenant_id) : ''
   const tenantName = tenant?.name || 'Mi Restaurante'
 
   const handleDownloadSvg = () => {
@@ -65,7 +65,7 @@ export function TableQrPrintPanel({ compact, showManageLink = true }: TableQrPri
   const handlePrint = () => {
     if (!selected) return
     const ok = printTableQrSheet(
-      buildTableQrData(selected.number, tenantName, selected.area?.name, sucursal?.name),
+      buildTableQrData(selected.number, tenantName, selected.tenant_id, selected.area?.name, sucursal?.name),
     )
     if (!ok) toast('Permite ventanas emergentes para imprimir', 'error')
     else toast(`Enviando QR Mesa ${selected.number} a impresión`, 'success')
