@@ -63,23 +63,53 @@ export function CommandMobileNav() {
   const visible = NAV.filter(
     (i) => user?.role && i.roles.includes(user.role) && MOBILE_PRIMARY_PATHS.has(i.path)
   )
+  const tabs = visible.slice(0, 6)
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-command-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="mx-auto max-w-screen-sm px-2 py-1.5 grid grid-cols-6 gap-1">
-        {visible.slice(0, 6).map((item) => (
+    <nav
+      className="mobile-tab-bar fixed bottom-0 left-0 right-0 z-40 border-t border-brand-200/80 bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(245,158,11,0.12)] supports-[backdrop-filter]:bg-white/90"
+      aria-label="Navegación principal"
+    >
+      <div
+        className="mx-auto max-w-screen-sm px-1.5 pt-1.5 grid gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+      >
+        {tabs.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) => cn(
-              'flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-[10px] font-semibold min-h-[52px] transition-all',
+              'relative flex flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 min-h-[56px] transition-all duration-200 active:scale-95',
               isActive
-                ? 'text-brand-700 bg-brand-50'
-                : 'text-slate-500 hover:text-brand-600 hover:bg-brand-50/60'
+                ? 'text-brand-700'
+                : 'text-slate-500'
             )}
           >
-            <item.icon size={15} />
-            <span className="truncate max-w-full">{item.label}</span>
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span className="absolute top-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-brand-500 mobile-tab-active" />
+                )}
+                <span
+                  className={cn(
+                    'flex items-center justify-center rounded-2xl transition-all duration-200',
+                    isActive
+                      ? 'w-11 h-11 gradient-amber text-white shadow-glow mobile-tab-active'
+                      : 'w-9 h-9 text-slate-500'
+                  )}
+                >
+                  <item.icon size={isActive ? 22 : 18} strokeWidth={isActive ? 2.25 : 2} />
+                </span>
+                <span
+                  className={cn(
+                    'truncate max-w-full text-[10px] leading-tight',
+                    isActive ? 'font-black text-brand-700' : 'font-semibold'
+                  )}
+                >
+                  {item.label}
+                </span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>
