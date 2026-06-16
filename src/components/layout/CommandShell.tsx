@@ -11,6 +11,8 @@ import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { ConnectionStatus } from '@/components/system/ConnectionStatus'
 import { PageBack, getPageBackTarget } from './PageBack'
+import { ShiftOpenGate } from '@/components/cash/ShiftOpenGate'
+import { useCashShiftGate } from '@/hooks/useCashShiftGate'
 
 const PAGE_META: Record<string, { title: string; zone: string }> = {
   '/app/dashboard': { title: 'Centro de mando', zone: 'COMANDO' },
@@ -44,6 +46,7 @@ export function CommandShell() {
   const { user, tenant, logout } = useAuthStore()
   const { stats, insights } = useLiveOps()
   const [copilotOpen, setCopilotOpen] = useState(true)
+  const { blocked, refresh } = useCashShiftGate()
 
   const isKitchen = location.pathname === '/app/kitchen'
   const isPOS = location.pathname === '/app/pos'
@@ -54,6 +57,7 @@ export function CommandShell() {
   if (isKitchen) {
     return (
       <div className="h-screen bg-orange-50 overflow-hidden flex flex-col">
+        <ShiftOpenGate open={blocked} onOpened={refresh} />
         <header className="h-12 px-3 sm:px-4 flex items-center justify-between gap-2 border-b border-orange-200 bg-gradient-to-r from-orange-500 to-brand-500 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {backTarget && <PageBack to={backTarget.to} label={backTarget.label} light />}
@@ -75,6 +79,7 @@ export function CommandShell() {
 
   return (
     <div className="h-screen bg-command-bg ops-grid-bg overflow-hidden flex flex-col">
+      <ShiftOpenGate open={blocked} onOpened={refresh} />
       <header className="shrink-0 glass-warm">
         <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-3 min-w-0">

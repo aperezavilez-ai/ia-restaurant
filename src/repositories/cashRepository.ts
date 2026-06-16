@@ -21,15 +21,22 @@ export const cashRepository = {
     }
   },
 
-  async openRegister(ctx: TenantContext, openingAmount: number): Promise<CashRegister> {
+  async openRegister(
+    ctx: TenantContext,
+    openingAmount: number,
+    openedAt?: string
+  ): Promise<CashRegister> {
     const existing = await this.getOpenRegister(ctx)
     if (existing) throw new Error('Ya hay una caja abierta')
 
     const register: CashRegister = {
       ...buildSeedCashRegister(ctx.userId),
       id: crypto.randomUUID(),
+      tenant_id: ctx.tenantId,
+      sucursal_id: ctx.sucursalId,
+      cashier_id: ctx.userId,
       opening_amount: openingAmount,
-      opened_at: new Date().toISOString(),
+      opened_at: openedAt || new Date().toISOString(),
     }
     await localDb.saveCashRegister(register)
     if (isSupabaseConfigured()) {
