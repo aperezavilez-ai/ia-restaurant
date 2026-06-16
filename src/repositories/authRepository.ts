@@ -26,6 +26,9 @@ function normalizeLoginError(email: string, err: unknown): Error {
       }
       return new Error('Correo o contraseña incorrectos')
     }
+    if (msg.includes('IDBObjectStore') || msg.includes('IndexedDB')) {
+      return new Error('Error de almacenamiento local. Recarga la página e intenta de nuevo.')
+    }
     if (msg.includes('Email not confirmed')) {
       return new Error('Confirma tu correo para continuar')
     }
@@ -55,7 +58,11 @@ async function buildSession(profile: User): Promise<AuthSession | null> {
     ? await tenantService.getSucursal(profile.sucursal_id)
     : (await tenantService.getSucursales(profile.tenant_id))[0]
   if (!tenant || !sucursal) return null
-  await persistBusinessContext(profile.tenant_id, sucursal.id)
+  try {
+    await persistBusinessContext(profile.tenant_id, sucursal.id)
+  } catch (err) {
+    console.warn('[auth] caché local omitida:', err)
+  }
   return { user: profile, tenant, sucursal }
 }
 

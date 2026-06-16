@@ -80,6 +80,14 @@ async function getAll<S extends StoreName>(store: S): Promise<IARestaurantDB[S][
   return db.getAll(store) as Promise<IARestaurantDB[S]['value'][]>
 }
 
+async function putById<S extends StoreName>(
+  store: S,
+  record: IARestaurantDB[S]['value'] & { id: string },
+) {
+  const db = await getDb()
+  await db.put(store, record as never, record.id)
+}
+
 export async function ensureLocalSeed(): Promise<void> {
   const db = await getDb()
   const meta = await db.get('meta', 'app')
@@ -123,18 +131,15 @@ export const localDb = {
   },
 
   async saveTenant(tenant: Tenant) {
-    const db = await getDb()
-    await db.put('tenants', tenant)
+    await putById('tenants', tenant)
   },
 
   async saveOrganization(org: Organization) {
-    const db = await getDb()
-    await db.put('organizations', org)
+    await putById('organizations', org)
   },
 
   async saveSucursal(sucursal: Sucursal) {
-    const db = await getDb()
-    await db.put('sucursales', sucursal)
+    await putById('sucursales', sucursal)
   },
 
   async getCategories(tenantId: string) {
@@ -152,18 +157,15 @@ export const localDb = {
   },
 
   async saveProduct(product: Product) {
-    const db = await getDb()
-    await db.put('products', product)
+    await putById('products', product)
   },
 
   async saveCategory(category: Category) {
-    const db = await getDb()
-    await db.put('categories', category)
+    await putById('categories', category)
   },
 
   async saveArea(area: TableArea) {
-    const db = await getDb()
-    await db.put('table_areas', area)
+    await putById('table_areas', area)
   },
 
   async getAreas(tenantId: string, sucursalId: string) {
@@ -183,8 +185,7 @@ export const localDb = {
   },
 
   async updateTable(table: RestaurantTable) {
-    const db = await getDb()
-    await db.put('tables', table)
+    await putById('tables', table)
   },
 
   async getOrders(tenantId: string, sucursalId: string) {
@@ -204,19 +205,17 @@ export const localDb = {
   async saveOrder(order: Order, items: OrderItem[]) {
     const db = await getDb()
     const tx = db.transaction(['orders', 'order_items'], 'readwrite')
-    await tx.objectStore('orders').put(order)
-    for (const item of items) await tx.objectStore('order_items').put(item)
+    await tx.objectStore('orders').put(order, order.id)
+    for (const item of items) await tx.objectStore('order_items').put(item, item.id)
     await tx.done
   },
 
   async updateOrder(order: Order) {
-    const db = await getDb()
-    await db.put('orders', order)
+    await putById('orders', order)
   },
 
   async updateOrderItem(item: OrderItem) {
-    const db = await getDb()
-    await db.put('order_items', item)
+    await putById('order_items', item)
   },
 
   async findOrderItem(itemId: string): Promise<OrderItem | undefined> {
@@ -225,8 +224,7 @@ export const localDb = {
   },
 
   async savePayment(payment: Payment) {
-    const db = await getDb()
-    await db.put('payments', payment)
+    await putById('payments', payment)
   },
 
   async getPayments(tenantId: string) {
@@ -248,8 +246,7 @@ export const localDb = {
   },
 
   async saveCashRegister(register: CashRegister) {
-    const db = await getDb()
-    await db.put('cash_registers', register)
+    await putById('cash_registers', register)
   },
 
   async getCustomers(tenantId: string) {
@@ -260,23 +257,20 @@ export const localDb = {
   },
 
   async saveCustomer(customer: Customer) {
-    const db = await getDb()
-    await db.put('customers', customer)
+    await putById('customers', customer)
   },
 
   async updateCustomer(customer: Customer) {
-    const db = await getDb()
-    await db.put('customers', customer)
+    await putById('customers', customer)
   },
 
   async enqueueSync(item: Omit<SyncQueueItem, 'id' | 'created_at'>) {
-    const db = await getDb()
     const entry: SyncQueueItem = {
       ...item,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
     }
-    await db.put('sync_queue', entry)
+    await putById('sync_queue', entry)
     return entry
   },
 
