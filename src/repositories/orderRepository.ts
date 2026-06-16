@@ -399,6 +399,90 @@ export const orderRepository = {
     return { ...order, items }
   },
 
+  async addItemsToTableAccount(
+    ctx: TenantContext,
+    tableId: string,
+    lines: CartLine[],
+  ): Promise<Order> {
+    const table = (await localDb.getTables(ctx.tenantId, ctx.sucursalId)).find((t) => t.id === tableId)
+    if (!table) throw new Error('Mesa no encontrada')
+    if (!lines.length) throw new Error('No hay productos para agregar')
+
+    const activeOrders = await localDb.getActiveOrders(ctx.tenantId, ctx.sucursalId)
+    const baseOrder = activeOrders
+      .filter((o) => o.table_id === tableId && o.status !== 'cobrada' && o.status !== 'cancelada')
+      .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())[0]
+
+    if (!baseOrder) {
+      const created = await this.sendToKitchen(ctx, lines, tableId, table.customer_id)
+      return created
+    }
+
+    const now = new Date().toISOString()
+    const newItems: OrderItem[] = lines.map((l) => ({
+      id: crypto.randomUUID(),
+      order_id: baseOrder.id,
+      product_id: l.product_id,
+      product_name: l.product_name,
+      quantity: l.quantity,
+      unit_price: l.unit_price,
+      subtotal: l.unit_price * l.quantity,
+      notes: l.notes,
+      status: 'listo',
+    }))
+
+    for (const item of newItems) await localDb.updateOrderItem(item)
+
+    const mergedItems = [...(baseOrder.items || []), ...newItems]
+    const subtotal = mergedItems.reduce((s, i) => s + i.subtotal, 0)
+    const discount = baseOrder.discount || 0
+    const taxable = Math.max(0, subtotal - discount)
+    const tax = taxable * (ctx.taxRate ?? TAX_RATE)
+    const total = taxable + tax
+
+    const updated: Order = {
+      ...baseOrder,
+      subtotal,
+      tax,
+      total,
+      items: mergedItems,
+      updated_at: now,
+    }
+
+    await localDb.updateOrder(updated)
+    await inventoryRepository.deductForOrder(ctx, lines, updated.folio)
+
+    const tablePatch: RestaurantTable = {
+      ...table,
+      status: 'ocupada',
+      current_order_id: updated.id,
+      opened_at: table.opened_at || now,
+    }
+    await localDb.updateTable(tablePatch)
+    opsBroadcast.notify()
+
+    if (isSupabaseConfigured()) {
+      try {
+        await orderService.insertOrderItems(newItems)
+        await orderService.updateOrderTotals(updated.id, {
+          subtotal: updated.subtotal,
+          tax: updated.tax,
+          discount: updated.discount,
+          total: updated.total,
+          updated_at: updated.updated_at,
+        })
+        await tableService.updateTableStatus(tablePatch.id, tablePatch.status, tablePatch.current_order_id)
+      } catch {
+        for (const item of newItems) {
+          await localDb.enqueueSync({ table: 'order_items', operation: 'insert', payload: item as never })
+        }
+        await localDb.enqueueSync({ table: 'orders', operation: 'update', payload: updated as never })
+      }
+    }
+
+    return updated
+  },
+
   async updateItemStatus(itemId: string, status: OrderItem['status']): Promise<void> {
     const item = await localDb.findOrderItem(itemId)
     if (!item) return

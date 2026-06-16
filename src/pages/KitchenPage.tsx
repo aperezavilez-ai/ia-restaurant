@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { Clock, CheckCircle, Bell, Flame, QrCode, AlertTriangle, ShoppingBag } from 'lucide-react'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { toast } from '@/components/ui/Toast'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useOpsSync } from '@/hooks/useOpsSync'
@@ -15,7 +18,7 @@ import { KITCHEN_CENTERS, itemMatchesCenter, getProductCategory, type KitchenCen
 import { whatsappService } from '@/services/whatsappService'
 import { getProductImageUrl } from '@/lib/productImages'
 import { formatCurrency } from '@/lib/utils'
-import type { Order, OrderItem, Product } from '@/types'
+import type { Order, OrderItem, Product, RestaurantTable, PaymentMethod } from '@/types'
 import type { TenantContext } from '@/types/context'
 
 async function notifyOrderReady(ctx: TenantContext, title: string, message: string) {
@@ -39,11 +42,19 @@ async function notifyOrderReady(ctx: TenantContext, title: string, message: stri
 export default function KitchenPage() {
   const ctx = useTenantContext()
   const [orders, setOrders] = useState<Order[]>([])
+  const [tables, setTables] = useState<RestaurantTable[]>([])
   const [tableMap, setTableMap] = useState<Record<string, number>>({})
   const [now, setNow] = useState(Date.now())
   const [center, setCenter] = useState<KitchenCenterId>('all')
   const [productKitchenMap, setProductKitchenMap] = useState<Record<string, string>>({})
   const [souvenirProducts, setSouvenirProducts] = useState<Product[]>([])
+  const [souvenirProduct, setSouvenirProduct] = useState<Product | null>(null)
+  const [souvenirMode, setSouvenirMode] = useState<'direct' | 'account'>('direct')
+  const [souvenirQty, setSouvenirQty] = useState('1')
+  const [souvenirTableId, setSouvenirTableId] = useState('')
+  const [souvenirPayMethod, setSouvenirPayMethod] = useState<PaymentMethod>('efectivo')
+  const [souvenirCashReceived, setSouvenirCashReceived] = useState('')
+  const [savingSouvenir, setSavingSouvenir] = useState(false)
 
   const load = useCallback(async () => {
     if (!ctx) return
@@ -54,6 +65,7 @@ export default function KitchenPage() {
       catalogRepository.getProducts(ctx),
     ])
     setOrders(active.filter(o => o.status !== 'cobrada' && o.status !== 'cancelada'))
+    setTables(tables)
     setTableMap(Object.fromEntries(tables.map(t => [t.id, t.number])))
     const map: Record<string, string> = {}
     for (const p of products) {
@@ -149,9 +161,144 @@ export default function KitchenPage() {
     .filter(o => center === 'all' || (o.items?.length ?? 0) > 0)
 
   const overdueCount = visibleOrders.filter(o => mins(o.created_at) > 10).length
+  const souvenirTables = tables
+    .filter((t) => t.status === 'ocupada' || t.status === 'cobro_pendiente')
+    .sort((a, b) => a.number - b.number)
+
+  const openSouvenirAction = (product: Product, mode: 'direct' | 'account') => {
+    setSouvenirProduct(product)
+    setSouvenirMode(mode)
+    setSouvenirQty('1')
+    setSouvenirTableId(souvenirTables[0]?.id || '')
+    setSouvenirPayMethod('efectivo')
+    setSouvenirCashReceived('')
+  }
+
+  const saveSouvenirSale = async () => {
+    if (!ctx || !souvenirProduct) return
+    const qty = Math.max(1, Number(souvenirQty || '1'))
+    if (!Number.isFinite(qty) || qty < 1) {
+      toast('Cantidad inválida', 'error')
+      return
+    }
+    const line = {
+      product_id: souvenirProduct.id,
+      product_name: souvenirProduct.name,
+      quantity: qty,
+      unit_price: souvenirProduct.price,
+      notes: 'Souvenir',
+    }
+    setSavingSouvenir(true)
+    try {
+      if (souvenirMode === 'account') {
+        if (!souvenirTableId) {
+          toast('Selecciona una mesa para añadir a la cuenta', 'error')
+          return
+        }
+        const updated = await orderRepository.addItemsToTableAccount(ctx, souvenirTableId, [line])
+        toast(`Souvenir agregado a mesa ${tableMap[souvenirTableId] || '?'} · ${updated.folio}`, 'success')
+      } else {
+        const opts = souvenirPayMethod === 'efectivo'
+          ? { cashReceived: Number(souvenirCashReceived || souvenirProduct.price * qty) }
+          : undefined
+        const result = await orderRepository.createOrderWithPayment(ctx, [line], souvenirPayMethod, opts)
+        toast(`Cobro directo registrado · ${result.order.folio}`, 'success')
+      }
+      setSouvenirProduct(null)
+      await load()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo registrar el souvenir', 'error')
+    } finally {
+      setSavingSouvenir(false)
+    }
+  }
 
   return (
     <div className="h-full flex flex-col gap-3">
+      <Modal
+        open={!!souvenirProduct}
+        onClose={() => !savingSouvenir && setSouvenirProduct(null)}
+        title="Souvenir en caja"
+        size="sm"
+      >
+        {souvenirProduct && (
+          <div className="p-5 space-y-3">
+            <p className="text-sm font-semibold text-slate-800">{souvenirProduct.name}</p>
+            <p className="text-xs text-slate-500">Precio unitario: {formatCurrency(souvenirProduct.price)}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                variant={souvenirMode === 'direct' ? 'primary' : 'outline'}
+                onClick={() => setSouvenirMode('direct')}
+              >
+                Pago directo
+              </Button>
+              <Button
+                size="sm"
+                variant={souvenirMode === 'account' ? 'primary' : 'outline'}
+                onClick={() => setSouvenirMode('account')}
+              >
+                Añadir a cuenta
+              </Button>
+            </div>
+
+            <Input
+              label="Cantidad"
+              type="number"
+              min={1}
+              value={souvenirQty}
+              onChange={(e) => setSouvenirQty(e.target.value)}
+            />
+
+            {souvenirMode === 'account' ? (
+              <label className="text-sm block">
+                <span className="text-slate-600 text-xs">Mesa</span>
+                <select
+                  className="w-full mt-1 border border-command-border rounded-xl px-3 py-2 text-sm"
+                  value={souvenirTableId}
+                  onChange={(e) => setSouvenirTableId(e.target.value)}
+                >
+                  {souvenirTables.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Mesa {t.number} · {t.status.replace('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <>
+                <label className="text-sm block">
+                  <span className="text-slate-600 text-xs">Método de pago</span>
+                  <select
+                    className="w-full mt-1 border border-command-border rounded-xl px-3 py-2 text-sm"
+                    value={souvenirPayMethod}
+                    onChange={(e) => setSouvenirPayMethod(e.target.value as PaymentMethod)}
+                  >
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                  </select>
+                </label>
+                {souvenirPayMethod === 'efectivo' && (
+                  <Input
+                    label="Recibido"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={souvenirCashReceived}
+                    onChange={(e) => setSouvenirCashReceived(e.target.value)}
+                    placeholder={String((souvenirProduct.price * Number(souvenirQty || '1')).toFixed(2))}
+                  />
+                )}
+              </>
+            )}
+
+            <Button className="w-full" loading={savingSouvenir} onClick={saveSouvenirSale}>
+              Confirmar {souvenirMode === 'direct' ? 'cobro directo' : 'añadir a cuenta'}
+            </Button>
+          </div>
+        )}
+      </Modal>
+
       <div className="flex items-center justify-between shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <Flame size={20} className="text-orange-600" />
@@ -288,6 +435,14 @@ export default function KitchenPage() {
                   <div className="p-3">
                     <p className="text-xs font-bold text-slate-800 leading-tight">{p.name}</p>
                     <p className="text-sm font-mono font-black text-brand-600 mt-1">{formatCurrency(p.price)}</p>
+                    <div className="mt-2 flex gap-1.5">
+                      <Button size="sm" className="flex-1" onClick={() => openSouvenirAction(p, 'direct')}>
+                        Pagar directo
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1" onClick={() => openSouvenirAction(p, 'account')}>
+                        A cuenta
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

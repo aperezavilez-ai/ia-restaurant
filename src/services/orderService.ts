@@ -49,6 +49,21 @@ export const orderService = {
   async updateItemStatus(itemId: string, status: OrderItem['status']): Promise<void> {
     await supabase.from('order_items').update({ status }).eq('id', itemId)
   },
+  async insertOrderItems(items: Partial<OrderItem>[]): Promise<void> {
+    if (!items.length) return
+    const { error } = await supabase.from('order_items').insert(items)
+    if (error) throw error
+  },
+  async updateOrderTotals(
+    orderId: string,
+    patch: Pick<Order, 'subtotal' | 'tax' | 'discount' | 'total' | 'updated_at'>,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('orders')
+      .update(patch)
+      .eq('id', orderId)
+    if (error) throw error
+  },
   async getOrderHistory(tenantId: string, sucursalId: string, limit = 50): Promise<Order[]> {
     const { data, error } = await supabase
       .from('orders').select('*, order_items(*)')
