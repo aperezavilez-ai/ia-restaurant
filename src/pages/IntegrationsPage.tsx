@@ -53,7 +53,7 @@ export default function IntegrationsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 max-w-xl">
+      <div className="grid grid-cols-2 gap-3 max-w-md">
         <Card className="p-4 text-center">
           <p className="text-2xl font-mono font-black">{items.length}</p>
           <p className="text-[10px] text-slate-500 uppercase">Integraciones</p>
@@ -61,10 +61,6 @@ export default function IntegrationsPage() {
         <Card className="p-4 text-center">
           <p className="text-2xl font-mono font-black text-brand-600">{activeCount}</p>
           <p className="text-[10px] text-slate-500 uppercase">Activas / configuradas</p>
-        </Card>
-        <Card className="p-4 text-center">
-          <p className="text-2xl font-mono font-black">{items.filter((i) => i.status === 'coming_soon').length}</p>
-          <p className="text-[10px] text-slate-500 uppercase">API próximamente</p>
         </Card>
       </div>
 
