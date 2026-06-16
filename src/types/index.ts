@@ -41,6 +41,27 @@ export interface PaymentConfig {
   secret_key?: string
 }
 
+export interface WhatsAppConfig {
+  phone_number_id?: string
+  access_token?: string
+  alerts?: {
+    order_ready?: boolean
+    payment_complete?: boolean
+  }
+}
+
+export interface Notification {
+  id: string
+  tenant_id: string
+  channel: 'whatsapp' | 'email' | 'interno'
+  title: string
+  message: string
+  recipient?: string
+  status: 'enviada' | 'fallida' | 'pendiente'
+  metadata?: Record<string, unknown>
+  created_at: string
+}
+
 export interface Organization {
   id: string
   tenant_id: string
@@ -52,6 +73,7 @@ export interface Organization {
   whatsapp_alerts?: string
   reports_email?: string
   payment_config?: PaymentConfig
+  whatsapp_config?: WhatsAppConfig
   created_at: string
 }
 

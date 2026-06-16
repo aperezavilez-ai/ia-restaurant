@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, ArrowRight, Globe } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
@@ -6,8 +7,17 @@ import { Button } from '@/components/ui/Button'
 import { INTEGRATIONS, integrationStatusVariant, type IntegrationDef } from '@/data/integrations'
 import { usePaymentGatewayStore } from '@/store/paymentGatewayStore'
 import { useAuthStore } from '@/store/authStore'
+import { useTenantContext } from '@/hooks/useTenantContext'
+import { tenantRepository } from '@/repositories/tenantRepository'
 
-function resolveStatus(integration: IntegrationDef, preferredGateway: string | null): IntegrationDef {
+function resolveStatus(
+  integration: IntegrationDef,
+  preferredGateway: string | null,
+  whatsappConfigured: boolean,
+): IntegrationDef {
+  if (integration.id === 'whatsapp' && whatsappConfigured) {
+    return { ...integration, status: 'configured', statusLabel: 'Configurado' }
+  }
   if (integration.gatewayId && preferredGateway === integration.gatewayId) {
     return { ...integration, status: 'configured', statusLabel: 'Configurada' }
   }
@@ -15,9 +25,19 @@ function resolveStatus(integration: IntegrationDef, preferredGateway: string | n
 }
 
 export default function IntegrationsPage() {
+  const ctx = useTenantContext()
   const tenant = useAuthStore((s) => s.tenant)
   const preferred = usePaymentGatewayStore((s) => s.getPreferred(tenant?.id || ''))
-  const items = INTEGRATIONS.map((i) => resolveStatus(i, preferred))
+  const [whatsappConfigured, setWhatsappConfigured] = useState(false)
+
+  useEffect(() => {
+    if (!ctx) return
+    tenantRepository.getBusinessProfile(ctx).then((profile) => {
+      setWhatsappConfigured(!!profile?.organization?.whatsapp_alerts?.trim())
+    })
+  }, [ctx])
+
+  const items = INTEGRATIONS.map((i) => resolveStatus(i, preferred, whatsappConfigured))
 
   const activeCount = items.filter((i) => i.status === 'active' || i.status === 'configured').length
 

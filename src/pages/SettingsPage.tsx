@@ -3,7 +3,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toast'
-import { Building2, Globe, Bell, CreditCard, QrCode } from 'lucide-react'
+import { Building2, Globe, Bell, CreditCard, QrCode, MessageCircle, Send } from 'lucide-react'
 import { useLiveFlowStore } from '@/store/liveFlowStore'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
@@ -11,7 +11,8 @@ import { useTenantContext } from '@/hooks/useTenantContext'
 import { tenantRepository } from '@/repositories/tenantRepository'
 import { catalogRepository } from '@/repositories/catalogRepository'
 import { tableRepository } from '@/repositories/tableRepository'
-import type { Organization } from '@/types'
+import { whatsappService } from '@/services/whatsappService'
+import type { Organization, WhatsAppConfig } from '@/types'
 
 export default function SettingsPage() {
   const { tenant, sucursal, setTenant } = useAuthStore()
@@ -28,8 +29,13 @@ export default function SettingsPage() {
     timezone: 'America/Mexico_City',
     currency: 'MXN',
     taxRate: '16',
+    waPhoneNumberId: '',
+    waAccessToken: '',
+    alertOrderReady: true,
+    alertPaymentComplete: false,
   })
   const [saving, setSaving] = useState(false)
+  const [testingWa, setTestingWa] = useState(false)
   const [usage, setUsage] = useState({ sucursales: 0, usuarios: 4, mesas: 0, productos: 0 })
 
   useEffect(() => {
@@ -37,6 +43,7 @@ export default function SettingsPage() {
     tenantRepository.getBusinessProfile(ctx).then((profile) => {
       if (!profile) return
       setOrg(profile.organization)
+      const wa = profile.organization?.whatsapp_config
       setForm({
         tenantName: profile.tenant.name,
         rfc: profile.organization?.rfc || '',
@@ -48,6 +55,10 @@ export default function SettingsPage() {
         timezone: profile.sucursal?.timezone || 'America/Mexico_City',
         currency: profile.sucursal?.currency || 'MXN',
         taxRate: String(profile.sucursal?.tax_rate ?? 16),
+        waPhoneNumberId: wa?.phone_number_id || '',
+        waAccessToken: wa?.access_token || '',
+        alertOrderReady: wa?.alerts?.order_ready !== false,
+        alertPaymentComplete: wa?.alerts?.payment_complete === true,
       })
     })
     Promise.all([
@@ -72,6 +83,14 @@ export default function SettingsPage() {
     setSaving(true)
     try {
       const taxRate = Number(form.taxRate)
+      const whatsappConfig: WhatsAppConfig = {
+        phone_number_id: form.waPhoneNumberId.trim() || undefined,
+        access_token: form.waAccessToken.trim() || undefined,
+        alerts: {
+          order_ready: form.alertOrderReady,
+          payment_complete: form.alertPaymentComplete,
+        },
+      }
       const profile = await tenantRepository.updateBusiness(ctx, {
         tenantName: form.tenantName,
         rfc: form.rfc,
@@ -80,6 +99,7 @@ export default function SettingsPage() {
         address: form.address,
         whatsappAlerts: form.whatsappAlerts,
         reportsEmail: form.reportsEmail,
+        whatsappConfig,
         timezone: form.timezone,
         currency: form.currency,
         taxRate: Number.isFinite(taxRate) ? taxRate : 16,
@@ -91,6 +111,31 @@ export default function SettingsPage() {
       toast(e instanceof Error ? e.message : 'No se pudo guardar', 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTestWhatsApp = async () => {
+    if (!ctx || !form.whatsappAlerts.trim()) {
+      toast('Guarda primero un número WhatsApp para alertas', 'error')
+      return
+    }
+    setTestingWa(true)
+    try {
+      const result = await whatsappService.sendAlert(ctx, {
+        type: 'test',
+        title: 'Prueba IA·RESTAURANT',
+        message: 'Las alertas WhatsApp están configuradas correctamente.',
+      })
+      if (result.status === 'enviada') {
+        toast('Mensaje de prueba enviado', 'success')
+      } else if (result.wa_url) {
+        whatsappService.openWhatsAppLink(result.wa_url)
+        toast('Abre WhatsApp para enviar el mensaje de prueba', 'success')
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'No se pudo probar WhatsApp', 'error')
+    } finally {
+      setTestingWa(false)
     }
   }
 
@@ -166,10 +211,10 @@ export default function SettingsPage() {
             <h3 className="font-bold">Notificaciones</h3>
           </div>
         </CardHeader>
-        <CardBody>
+        <CardBody className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="WhatsApp para alertas"
+              label="WhatsApp del equipo (recibe alertas)"
               placeholder="+52 55 0000 0000"
               value={form.whatsappAlerts}
               onChange={e => setForm(f => ({ ...f, whatsappAlerts: e.target.value }))}
@@ -181,6 +226,56 @@ export default function SettingsPage() {
               value={form.reportsEmail}
               onChange={e => setForm(f => ({ ...f, reportsEmail: e.target.value }))}
             />
+          </div>
+
+          <div className="rounded-xl border border-command-border p-4 space-y-3 bg-slate-50/50">
+            <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <MessageCircle size={16} className="text-green-600" /> Alertas automáticas
+            </p>
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.alertOrderReady}
+                onChange={e => setForm(f => ({ ...f, alertOrderReady: e.target.checked }))}
+                className="rounded border-slate-300"
+              />
+              Pedido listo en cocina (KDS)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.alertPaymentComplete}
+                onChange={e => setForm(f => ({ ...f, alertPaymentComplete: e.target.checked }))}
+                className="rounded border-slate-300"
+              />
+              Cobro registrado en caja
+            </label>
+          </div>
+
+          <div className="rounded-xl border border-dashed border-brand-200 p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-700">WhatsApp Cloud API (opcional — envío automático)</p>
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              Sin credenciales, al marcar pedido listo se abre WhatsApp con el mensaje listo para enviar.
+              Con Phone Number ID y Access Token de Meta, el envío es automático.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Phone Number ID"
+                placeholder="ID de tu número Business"
+                value={form.waPhoneNumberId}
+                onChange={e => setForm(f => ({ ...f, waPhoneNumberId: e.target.value }))}
+              />
+              <Input
+                label="Access Token"
+                type="password"
+                placeholder="Token permanente Meta"
+                value={form.waAccessToken}
+                onChange={e => setForm(f => ({ ...f, waAccessToken: e.target.value }))}
+              />
+            </div>
+            <Button variant="outline" size="sm" loading={testingWa} onClick={handleTestWhatsApp}>
+              <Send size={14} /> Enviar prueba
+            </Button>
           </div>
         </CardBody>
       </Card>

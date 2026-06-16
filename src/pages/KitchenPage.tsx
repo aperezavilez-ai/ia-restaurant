@@ -12,7 +12,27 @@ import { tableRepository } from '@/repositories/tableRepository'
 import { catalogRepository } from '@/repositories/catalogRepository'
 import { useLiveFlowStore } from '@/store/liveFlowStore'
 import { KITCHEN_CENTERS, itemMatchesCenter, getProductCategory, type KitchenCenterId } from '@/lib/productionCenters'
+import { whatsappService } from '@/services/whatsappService'
 import type { Order, OrderItem } from '@/types'
+import type { TenantContext } from '@/types/context'
+
+async function notifyOrderReady(ctx: TenantContext, title: string, message: string) {
+  try {
+    const result = await whatsappService.sendAlert(ctx, {
+      type: 'order_ready',
+      title,
+      message,
+    })
+    if (result.status === 'enviada') {
+      toast('WhatsApp enviado al equipo', 'success')
+    } else if (result.wa_url) {
+      whatsappService.openWhatsAppLink(result.wa_url)
+      toast('Abre WhatsApp para avisar al equipo', 'success')
+    }
+  } catch {
+    /* alerta opcional */
+  }
+}
 
 export default function KitchenPage() {
   const ctx = useTenantContext()
@@ -71,6 +91,9 @@ export default function KitchenPage() {
         })
       }
       toast('Platillo LISTO — mesero notificado', 'success')
+      if (ctx && tableNum) {
+        void notifyOrderReady(ctx, 'Platillo listo', `${item.product_name} listo — Mesa ${tableNum}`)
+      }
     }
     await load()
   }
@@ -93,6 +116,12 @@ export default function KitchenPage() {
       })
     }
     toast('Orden completa — mesero notificado', 'success')
+    if (ctx) {
+      const msg = tableNum
+        ? `¡Orden completa! Mesa ${tableNum} — llevar a mesa (${order.folio})`
+        : `¡Orden ${order.folio} lista para entregar`
+      void notifyOrderReady(ctx, 'Orden lista', msg)
+    }
     await load()
   }
 

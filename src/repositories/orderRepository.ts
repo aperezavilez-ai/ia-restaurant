@@ -5,6 +5,7 @@ import { localDb } from '@/lib/localDb'
 import { opsBroadcast } from '@/services/opsBroadcast'
 import { inventoryRepository } from '@/repositories/inventoryRepository'
 import { crmRepository } from '@/repositories/crmRepository'
+import { whatsappService } from '@/services/whatsappService'
 import { withLocalFirst, withHybridList } from './base'
 import { isSupabaseConfigured } from '@/lib/config'
 import { generateFolio } from '@/lib/utils'
@@ -29,6 +30,14 @@ function freeTable(table: RestaurantTable): RestaurantTable {
     customer_id: undefined,
     customer_name: undefined,
   }
+}
+
+function notifyPaymentComplete(ctx: TenantContext, folio: string, total: number) {
+  void whatsappService.sendAlert(ctx, {
+    type: 'payment_complete',
+    title: 'Cobro registrado',
+    message: `${folio} — $${total.toFixed(2)} MXN`,
+  }).catch(() => {})
 }
 
 async function pushOrderRemote(
@@ -191,6 +200,7 @@ export const orderRepository = {
     for (const p of payments) await localDb.savePayment(p)
     await inventoryRepository.deductForOrder(ctx, lines, folio)
     if (customerId) await crmRepository.recordSale(ctx, customerId, total)
+    notifyPaymentComplete(ctx, folio, total)
     opsBroadcast.notify()
 
     if (options?.tableId) {
@@ -318,6 +328,7 @@ export const orderRepository = {
     } else if (found.customer_id) {
       await crmRepository.recordSale(ctx, found.customer_id, total)
     }
+    notifyPaymentComplete(ctx, order.folio, total)
 
     return { order: { ...order, items }, payment, payments }
   },
