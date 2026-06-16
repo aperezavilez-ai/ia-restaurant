@@ -39,6 +39,7 @@ interface LiveFlowState {
   addWaiterAlert: (alert: Omit<WaiterAlert, 'id' | 'read' | 'created_at'>) => Promise<void>
   dismissAlert: (alertId: string) => Promise<void>
   getOrderForTable: (tableNumber: number) => QROrder | undefined
+  getOrdersForTable: (tableNumber: number) => QROrder[]
   getPendingValidation: () => QROrder[]
   applyRemoteOrder: (order: QROrder) => void
   applyRemoteAlert: (alert: WaiterAlert) => void
@@ -215,6 +216,12 @@ export const useLiveFlowStore = create<LiveFlowState>()(
 
       getOrderForTable: (tableNumber) => {
         return get().qrOrders.find(o => o.table_number === tableNumber && !['entregado', 'rechazado'].includes(o.status))
+      },
+      getOrdersForTable: (tableNumber) => {
+        return get()
+          .qrOrders
+          .filter(o => o.table_number === tableNumber && !['entregado', 'rechazado'].includes(o.status))
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       },
 
       getPendingValidation: () => get().qrOrders.filter(o => o.status === 'enviado'),

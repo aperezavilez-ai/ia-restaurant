@@ -24,9 +24,10 @@ export default function MeseroPWA() {
   const unread = waiterAlerts.filter(a => !a.read)
   const myTables = SEED_TABLES.filter(t => t.number <= 12).slice(0, 5)
 
-  const getTableQRStatus = (num: number) => {
-    const order = qrOrders.find(o => o.table_number === num && !['entregado', 'rechazado'].includes(o.status))
-    return order?.status
+  const getTableQROrders = (num: number) => {
+    return qrOrders
+      .filter(o => o.table_number === num && !['entregado', 'rechazado'].includes(o.status))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }
 
   return (
@@ -74,7 +75,8 @@ export default function MeseroPWA() {
         <p className="text-[10px] font-mono text-slate-500 uppercase mb-3">Mis mesas</p>
         <div className="space-y-3">
           {myTables.map(t => {
-            const qrStatus = getTableQRStatus(t.number)
+            const qrOrdersForTable = getTableQROrders(t.number)
+            const qrStatus = qrOrdersForTable[0]?.status
             return (
               <div key={t.id} className="bg-white rounded-xl border border-command-border p-4 shadow-card">
                 <div className="flex justify-between items-start">
@@ -85,7 +87,7 @@ export default function MeseroPWA() {
                     </Badge>
                     {qrStatus && (
                       <Badge variant="amber" className="mt-1 ml-1 gap-1">
-                        <QrCode size={10} /> QR: {qrStatus.replace('_', ' ')}
+                        <QrCode size={10} /> QR: {qrOrdersForTable.length} ticket{qrOrdersForTable.length > 1 ? 's' : ''} · {qrStatus.replace('_', ' ')}
                       </Badge>
                     )}
                   </div>

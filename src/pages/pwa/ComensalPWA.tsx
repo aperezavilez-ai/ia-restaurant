@@ -56,9 +56,12 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
   const hydrateFromRemote = useLiveFlowStore((s) => s.hydrateFromRemote)
   const { qrOrders } = useLiveFlowSync(1500)
 
+  const activeOrders = qrOrders
+    .filter((o) => o.table_number === mesa && !['entregado', 'rechazado'].includes(o.status))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   const activeOrder = activeOrderId
-    ? qrOrders.find((o) => o.id === activeOrderId)
-    : qrOrders.find((o) => o.table_number === mesa && !['entregado', 'rechazado'].includes(o.status))
+    ? activeOrders.find((o) => o.id === activeOrderId) ?? activeOrders[0]
+    : activeOrders[0]
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
 
@@ -87,7 +90,7 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
   }, [mesa, tenantHint])
 
   useEffect(() => {
-    if (activeOrder && !activeOrderId) setActiveOrderId(activeOrder.id)
+    if (activeOrder && activeOrder.id !== activeOrderId) setActiveOrderId(activeOrder.id)
   }, [activeOrder, activeOrderId])
 
   if (loading) {
@@ -111,7 +114,6 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
   }
 
   const addFromSheet = (product: Product, qty: number, notes: string) => {
-    if (activeOrder) return
     const normNotes = notes.trim()
     setCart((c) => {
       const existing = c.find(
@@ -146,7 +148,7 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
     cart.filter((c) => c.product_id === productId).reduce((s, i) => s + i.qty, 0)
 
   const sendOrder = async () => {
-    if (!cart.length || activeOrder) return
+    if (!cart.length) return
     setSending(true)
     try {
       const order = await submitQROrder({
@@ -166,7 +168,9 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
       setActiveOrderId(order.id)
       setCart([])
       toast(
-        'Pedido enviado — ' + (order.status === 'en_preparacion' ? 'ya va a cocina' : 'caja lo validará'),
+        activeOrders.length > 0
+          ? 'Adicional enviado — se sumó a tu mesa'
+          : 'Pedido enviado — ' + (order.status === 'en_preparacion' ? 'ya va a cocina' : 'caja lo validará'),
         'success'
       )
     } finally {
@@ -191,7 +195,7 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
           key={p.id}
           product={p}
           qtyInCart={qtyForProduct(p.id) || undefined}
-          disabled={!!activeOrder}
+          disabled={false}
           onClick={() => setSheetProduct(p)}
         />
       ))}
@@ -219,35 +223,30 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
 
       <InstallMenuBanner />
 
-      {activeOrder && (
+      {activeOrders.length > 0 && (
         <div className="mx-4 mt-4 p-4 rounded-xl bg-white border-2 border-brand-200 shadow-glow">
-          <p className="text-[10px] font-mono text-slate-500 uppercase">Tu pedido · {activeOrder.folio}</p>
-          <p className="font-bold text-slate-800 mt-1">{STATUS_LABELS[activeOrder.status] || activeOrder.status}</p>
-          <div className="flex gap-1 mt-3 flex-wrap">
-            {['enviado', 'en_preparacion', 'listo', 'entregado'].map((step, i) => {
-              const steps = ['enviado', 'en_preparacion', 'listo', 'entregado']
-              const currentIdx = steps.indexOf(
-                activeOrder.status === 'validado' ? 'en_preparacion' : activeOrder.status
-              )
-              const done = i <= currentIdx
-              return (
-                <Badge key={step} variant={done ? 'success' : 'default'} className="text-[9px]">
-                  {['Enviado', 'Cocina', 'Listo', 'Entregado'][i]}
-                </Badge>
-              )
-            })}
-          </div>
-          {activeOrder.status === 'rechazado' && (
-            <p className="text-xs text-ops-danger mt-2">{activeOrder.rejected_reason}</p>
-          )}
-          <ul className="mt-3 text-xs text-slate-600 space-y-1">
-            {activeOrder.items.map((item, i) => (
-              <li key={i}>
-                {item.quantity}× {item.product_name}
-                {item.notes && <span className="text-ops-warning block">↳ {item.notes}</span>}
-              </li>
+          <p className="text-[10px] font-mono text-slate-500 uppercase">Pedidos de tu mesa</p>
+          <p className="font-bold text-slate-800 mt-1">
+            {activeOrders.length} ticket{activeOrders.length > 1 ? 's' : ''} activo{activeOrders.length > 1 ? 's' : ''}
+          </p>
+          <div className="mt-3 space-y-3">
+            {activeOrders.slice(0, 4).map((order) => (
+              <div key={order.id} className="rounded-lg border border-brand-100 p-2.5 bg-brand-50/40">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-mono text-brand-700">{order.folio}</p>
+                  <p className="text-xs font-bold text-slate-700">{STATUS_LABELS[order.status] || order.status}</p>
+                </div>
+                <ul className="mt-1.5 text-xs text-slate-600 space-y-0.5">
+                  {order.items.slice(0, 3).map((item, i) => (
+                    <li key={i}>
+                      {item.quantity}x {item.product_name}
+                    </li>
+                  ))}
+                  {order.items.length > 3 && <li className="text-slate-400">+{order.items.length - 3} más</li>}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
@@ -267,7 +266,7 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-command-border p-4 shadow-panel z-20">
-        {cart.length > 0 && !activeOrder && (
+        {cart.length > 0 && (
           <div className="mb-3 space-y-1 max-h-28 overflow-y-auto">
             {cart.map((i) => (
               <div key={i.lineId} className="flex justify-between items-start text-xs gap-2">
@@ -298,12 +297,11 @@ function ComensalMenuView({ mesa, tenantHint }: { mesa: number; tenantHint?: str
           <Button variant="ghost" size="sm" className="flex-1" onClick={() => callWaiter('ayuda')}>
             <Bell size={14} /> Mesero
           </Button>
-          {!activeOrder ? (
-            <Button size="sm" className="flex-1" disabled={!cart.length || sending} onClick={sendOrder}>
-              {sending ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
-              {total > 0 ? ` Enviar ${formatCurrency(total)}` : ' Pedir'}
-            </Button>
-          ) : (
+          <Button size="sm" className="flex-1" disabled={!cart.length || sending} onClick={sendOrder}>
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
+            {total > 0 ? ` ${activeOrders.length ? 'Enviar adicional' : 'Enviar'} ${formatCurrency(total)}` : ' Pedir'}
+          </Button>
+          {activeOrders.length > 0 && (
             <Button size="sm" variant="outline" className="flex-1" onClick={() => callWaiter('cuenta')}>
               <CreditCard size={14} /> Pedir cuenta
             </Button>
