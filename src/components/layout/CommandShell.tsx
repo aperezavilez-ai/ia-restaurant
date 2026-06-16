@@ -75,7 +75,7 @@ export function CommandShell() {
   return (
     <div className="h-screen bg-command-bg ops-grid-bg overflow-hidden flex flex-col">
       <header className="shrink-0 glass-warm">
-        <div className="px-4 py-3 flex items-center justify-between gap-4">
+        <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <Logo size="sm" showTagline />
           </div>
@@ -120,20 +120,20 @@ export function CommandShell() {
             </div>
           </div>
         </div>
-        <div className="px-4 pb-3">
-          <CommandNav />
+        <div className="px-2 sm:px-4 pb-2 sm:pb-3">
+          <CommandNav compact />
         </div>
       </header>
 
       <div className={cn(
-        'shrink-0 px-4 sm:px-6 py-3 border-b border-command-border flex items-center justify-between gap-3',
+        'shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 border-b border-command-border flex items-center justify-between gap-2 sm:gap-3',
         isPOS ? 'bg-white' : 'bg-command-bg/80'
       )}>
         <div className="flex items-center gap-3 min-w-0">
           {backTarget && <PageBack to={backTarget.to} label={backTarget.label} />}
           <div className="min-w-0">
             <p className="text-[10px] font-mono text-orange-600 uppercase tracking-[0.2em]">{meta.zone}</p>
-            <h1 className="text-lg sm:text-xl font-black text-slate-800 truncate">{meta.title}</h1>
+            <h1 className="text-base sm:text-xl font-black text-slate-800 truncate">{meta.title}</h1>
           </div>
         </div>
         {isPOS && stats && (
@@ -146,15 +146,17 @@ export function CommandShell() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         <main className={cn(
           'flex-1 min-h-0',
-          isPOS ? 'p-0 overflow-hidden' : 'p-6 overflow-y-auto'
+          isPOS ? 'p-0 overflow-hidden' : 'p-3 sm:p-6 overflow-y-auto'
         )}>
           <Outlet />
         </main>
-        {showCopilot && (
-          copilotOpen
-            ? <AICopilot insights={insights} onToggle={() => setCopilotOpen(false)} />
-            : <AICopilot insights={insights} collapsed onToggle={() => setCopilotOpen(true)} />
-        )}
+        <div className="hidden xl:block">
+          {showCopilot && (
+            copilotOpen
+              ? <AICopilot insights={insights} onToggle={() => setCopilotOpen(false)} />
+              : <AICopilot insights={insights} collapsed onToggle={() => setCopilotOpen(true)} />
+          )}
+        </div>
       </div>
     </div>
   )

@@ -327,8 +327,8 @@ export default function POSPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 bg-command-bg">
-      <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden min-h-0 border-r border-command-border">
+    <div className="flex h-full min-h-0 bg-command-bg flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col p-3 sm:p-4 gap-3 overflow-hidden min-h-0 lg:border-r border-command-border">
         <div className="flex gap-2 flex-wrap">
           <Input placeholder="Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} icon={<Search size={15} />} className="flex-1 min-w-[200px]" />
           <button onClick={() => setTableModal(true)}
@@ -390,7 +390,7 @@ export default function POSPage() {
         </div>
       </div>
 
-      <div className="w-[320px] xl:w-[360px] flex flex-col bg-white border-l border-command-border shrink-0 min-h-0 h-full shadow-panel">
+      <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-white border-t lg:border-t-0 lg:border-l border-command-border shrink-0 min-h-0 h-[48vh] lg:h-full shadow-panel">
         <div className="p-4 border-b border-command-border bg-gradient-to-r from-brand-50 to-orange-50 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

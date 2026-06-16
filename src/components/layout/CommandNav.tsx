@@ -25,7 +25,7 @@ export function CommandNav({ compact, light }: { compact?: boolean; light?: bool
   const visible = NAV.filter(i => user?.role && i.roles.includes(user.role))
 
   return (
-    <nav className={cn('flex items-center gap-1', compact ? 'overflow-x-auto' : 'flex-wrap')}>
+    <nav className={cn('flex items-center gap-1 overflow-x-auto', compact ? 'flex-nowrap' : 'flex-wrap')}>
       {visible.map(item => (
         <NavLink
           key={item.path}
