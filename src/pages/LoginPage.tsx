@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/brand/Logo'
 import { useAuthStore } from '@/store/authStore'
 import { authRepository } from '@/repositories/authRepository'
+import { cashRepository } from '@/repositories/cashRepository'
 import { bootstrapService } from '@/services/bootstrapService'
 import { isSupabaseConfigured } from '@/lib/config'
 import { toast } from '@/components/ui/Toast'
@@ -39,8 +40,19 @@ export default function LoginPage() {
     try {
       const session = await authRepository.signIn(email, password)
       setSession(session)
-      toast(`Bienvenido a ${session.tenant.name}`, 'success')
-      navigate('/app/dashboard')
+      const register = await cashRepository.getOpenRegister({
+        tenantId: session.tenant.id,
+        sucursalId: session.sucursal.id,
+        userId: session.user.id,
+        taxRate: (session.sucursal.tax_rate || 16) / 100,
+      })
+      if (register) {
+        toast(`Bienvenido a ${session.tenant.name}`, 'success')
+        navigate('/app/dashboard')
+      } else {
+        toast('Abre turno de caja para iniciar operación', 'warning')
+        navigate('/app/cash/shift')
+      }
       if (isSupabaseConfigured()) {
         void bootstrapService.pullFromRemote({
           tenantId: session.tenant.id,
