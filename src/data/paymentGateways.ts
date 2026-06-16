@@ -1,4 +1,4 @@
-export type PaymentGatewayId = 'mercadopago' | 'clip' | 'stripe'
+export type PaymentGatewayId = 'mercadopago' | 'stripe'
 
 export interface PaymentGatewayDef {
   id: PaymentGatewayId
@@ -10,53 +10,55 @@ export interface PaymentGatewayDef {
   features: string[]
   signupUrl: string
   docsUrl: string
+  credentialsHelpUrl: string
   /** Aclaración: cuenta del restaurante, no suscripción IA·RESTAURANT */
   accountNote: string
 }
 
-/** Pasarelas para que el restaurante cobre a sus comensales — NO suscripción SaaS */
+/** IA·RESTAURANT no custodia ni procesa fondos — solo ayuda a generar links con las credenciales del restaurante. */
+export const PAYMENT_BRIDGE_NOTE =
+  'IA·RESTAURANT actúa únicamente como puente técnico: te ayudamos a conectar tu cuenta de Mercado Pago o Stripe y a generar links de pago. El dinero se cobra y deposita en tu cuenta del proveedor. Nosotros no recibimos, retenemos ni somos responsables de tus cobros.'
+
+export const PAYMENT_LINK_ONLY_NOTE =
+  'El cobro es por link de pago (Mercado Pago o Stripe Payment Link). No hay cargo automático en tarjeta desde IA·RESTAURANT: el comensal paga en la página del proveedor y tú confirmas en caja cuando el pago se refleje.'
+
+/** Pasarelas soportadas para links — cuenta del restaurante, no suscripción SaaS */
 export const PAYMENT_GATEWAYS: PaymentGatewayDef[] = [
   {
     id: 'mercadopago',
     name: 'Mercado Pago',
-    tagline: 'Cobros locales en México',
+    tagline: 'Links de pago en México',
     description:
-      'Abre tu cuenta de negocio en Mercado Pago para recibir pagos de tus comensales con tarjeta, transferencia, OXXO y QR. El dinero va directo a tu cuenta.',
+      'Conecta tu cuenta de negocio en Mercado Pago. Desde POS generamos un link de checkout; el pago lo procesa Mercado Pago y el dinero va a tu cuenta.',
     region: 'México',
     accent: '#009EE3',
-    features: ['Link de pago', 'QR en mesa', 'Terminal Point', 'Comisiones en MXN'],
+    features: ['Link de pago', 'Tarjeta y transferencia', 'OXXO y QR MP', 'Depósito a tu cuenta MP'],
     signupUrl: 'https://www.mercadopago.com.mx/herramientas-para-vender',
     docsUrl: 'https://www.mercadopago.com.mx/developers/es/docs',
-    accountNote: 'Cuenta de tu restaurante en Mercado Pago — no es el pago de tu plan IA·RESTAURANT.',
-  },
-  {
-    id: 'clip',
-    name: 'Clip',
-    tagline: 'Terminal y cobro presencial',
-    description:
-      'Clip es muy usado en restaurantes mexicanos para cobrar con terminal móvil y links. Regístrate con tu RFC o negocio; los depósitos llegan a tu cuenta Clip.',
-    region: 'México',
-    accent: '#FF6B00',
-    features: ['Terminal Clip', 'Link de pago', 'Cobro con tarjeta', 'Depósitos a tu banco'],
-    signupUrl: 'https://www.clip.mx/',
-    docsUrl: 'https://ayuda.clip.mx/',
-    accountNote: 'Tu cuenta Clip para cobrar en caja o mesa — independiente de IA·RESTAURANT.',
+    credentialsHelpUrl: 'https://www.mercadopago.com.mx/developers/panel/app',
+    accountNote: 'Tu cuenta Mercado Pago — IA·RESTAURANT no toca el dinero.',
   },
   {
     id: 'stripe',
     name: 'Stripe',
-    tagline: 'Tarjetas y pagos en línea',
+    tagline: 'Payment Links globales',
     description:
-      'Crea una cuenta Stripe de negocio para Payment Links, checkout y tarjetas internacionales. Los fondos se depositan en la cuenta bancaria que configures en Stripe.',
+      'Conecta tu cuenta Stripe de negocio. Generamos Payment Links; Stripe cobra al comensal y deposita en el banco que configures en Stripe.',
     region: 'Global · MX',
     accent: '#635BFF',
-    features: ['Payment Links', 'Tarjetas internacionales', 'Dashboard de cobros', 'API para integraciones'],
+    features: ['Payment Links', 'Tarjetas internacionales', 'Dashboard Stripe', 'Depósito a tu banco'],
     signupUrl: 'https://dashboard.stripe.com/register',
     docsUrl: 'https://docs.stripe.com/payments/payment-links',
-    accountNote:
-      'Importante: esta es tu cuenta Stripe para cobrar a comensales. No confundir con el cobro de mensualidad/anualidad del software IA·RESTAURANT (eso se gestiona aparte en Suscripciones).',
+    credentialsHelpUrl: 'https://dashboard.stripe.com/apikeys',
+    accountNote: 'Tu cuenta Stripe — independiente del plan IA·RESTAURANT.',
   },
 ]
 
+export const CONNECT_STEPS = [
+  { step: 1, title: 'Crea tu cuenta', detail: 'Regístrate en Mercado Pago o Stripe con los datos de tu restaurante.' },
+  { step: 2, title: 'Copia tus credenciales', detail: 'Desde el panel del proveedor (Developers / API keys) pega Public Key y Access Token, o Publishable y Secret Key.' },
+  { step: 3, title: 'Genera links en POS', detail: 'En Caja → POS, método Tarjeta → “Generar link de pago”. El comensal paga en MP/Stripe; tú confirmas el cobro en caja.' },
+] as const
+
 export const SAAS_BILLING_NOTE =
-  'El pago de tu plan IA·RESTAURANT (mensual o anual) es un proceso distinto y no pasa por estas pasarelas. Aquí solo configuras cómo tus clientes te pagan en el restaurante.'
+  'El pago de tu plan IA·RESTAURANT (mensual o anual) es un proceso distinto y no pasa por estas pasarelas. Aquí solo conectas cómo tus comensales te pagan en el restaurante.'

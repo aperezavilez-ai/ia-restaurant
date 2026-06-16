@@ -32,7 +32,7 @@ export interface Tenant {
   created_at: string
 }
 
-export type PaymentGatewayId = 'mercadopago' | 'clip' | 'stripe'
+export type PaymentGatewayId = 'mercadopago' | 'stripe'
 
 export interface PaymentConfig {
   gateway?: PaymentGatewayId

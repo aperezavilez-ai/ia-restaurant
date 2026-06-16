@@ -307,7 +307,7 @@ export default function POSPage() {
     try {
       const url = await createPaymentLink(total, folio)
       window.open(url, '_blank', 'noopener,noreferrer')
-      toast('Link de pago abierto — confirma el cobro cuando el cliente pague', 'success')
+      toast('Link abierto — el comensal paga en tu cuenta MP/Stripe; confirma en caja cuando se refleje el pago', 'success')
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo generar el link', 'error')
     } finally {
@@ -622,11 +622,11 @@ export default function POSPage() {
           )}
 
           {payMethod === 'tarjeta' && !canGeneratePaymentLink && (
-            <p className="text-[10px] text-slate-500 text-center">
+            <p className="text-[10px] text-slate-500 text-center leading-relaxed">
               <Link to="/app/payment-gateways" className="text-brand-600 font-semibold hover:underline">
-                Configura credenciales
+                Conecta Mercado Pago o Stripe
               </Link>
-              {' '}para generar links de pago automáticos
+              {' '}para generar links de pago (IA·RESTAURANT solo es puente — el dinero va a tu cuenta)
             </p>
           )}
 

@@ -18,7 +18,7 @@ export function PaymentGatewaysPromo({ compact }: { compact?: boolean }) {
       >
         <span className="flex items-center gap-2 text-slate-700">
           <CreditCard size={16} className="text-brand-600" />
-          {gatewayName ? `Pasarela: ${gatewayName}` : 'Configurar cobros en línea'}
+          {gatewayName ? `Conectado: ${gatewayName}` : 'Conectar MP o Stripe'}
         </span>
         <ChevronRight size={16} className="text-slate-400" />
       </Link>
@@ -31,19 +31,19 @@ export function PaymentGatewaysPromo({ compact }: { compact?: boolean }) {
         <div>
           <p className="font-bold text-slate-800 flex items-center gap-2">
             <CreditCard size={18} className="text-brand-600" />
-            Cobros con Mercado Pago, Clip o Stripe
+            Links de pago — Mercado Pago o Stripe
           </p>
           <p className="text-sm text-slate-600 mt-1 max-w-xl">
-            Conecta la pasarela de <strong>tu restaurante</strong> para cobrar a comensales.
-            El dinero va a tu cuenta — no es el pago de tu plan IA·RESTAURANT.
+            IA·RESTAURANT te ayuda a conectar tu cuenta y generar links. El dinero va directo a tu pasarela;
+            nosotros no recibimos ni somos responsables del cobro.
           </p>
           {gatewayName && (
-            <p className="text-xs text-brand-700 font-mono mt-2">Pasarela seleccionada: {gatewayName}</p>
+            <p className="text-xs text-brand-700 font-mono mt-2">Cuenta conectada: {gatewayName}</p>
           )}
         </div>
         <Link to="/app/payment-gateways">
           <span className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-brand-500 text-white text-sm font-bold hover:bg-brand-600 transition-colors">
-            Ver pasarelas <ChevronRight size={16} />
+            Conectar pasarela <ChevronRight size={16} />
           </span>
         </Link>
       </div>

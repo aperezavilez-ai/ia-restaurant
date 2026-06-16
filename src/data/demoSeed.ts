@@ -106,7 +106,7 @@ export const DEMO_INTEGRATIONS: Integration[] = [
   { id: 'int2', name: 'Stripe', category: 'Pagos', status: 'disponible', icon: '💳' },
   { id: 'int3', name: 'Mercado Pago', category: 'Pagos', status: 'disponible', icon: '🛒' },
   { id: 'int4', name: 'PAC Facturación CFDI', category: 'Facturación', status: 'disponible', icon: '📄' },
-  { id: 'int4', name: 'Delivery manual', category: 'Delivery', status: 'activo', icon: '🛵' },
+  { id: 'int4', name: 'Delivery manual', category: 'Delivery', status: 'disponible', icon: '🛵' },
   { id: 'int7', name: 'Impresora Térmica ESC/POS', category: 'Hardware', status: 'conectado', icon: '🖨️' },
 ]
 

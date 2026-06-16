@@ -134,7 +134,9 @@ export default async function handler(req, res) {
     } else if (gateway === 'stripe') {
       url = await createStripeLink(config, amount, folio, returnUrl)
     } else {
-      return res.status(400).json({ error: 'Clip aún no soporta links automáticos — usa terminal o link manual' })
+      return res.status(400).json({
+        error: 'Solo Mercado Pago y Stripe están soportados. Conecta una en Pasarelas de pago.',
+      })
     }
     return res.status(200).json({ url })
   } catch (e) {
