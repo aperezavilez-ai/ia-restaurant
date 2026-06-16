@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/brand/Logo'
 import { toast } from '@/components/ui/Toast'
 import { authRepository } from '@/repositories/authRepository'
-import { isSupabaseConfigured } from '@/lib/config'
 import { useAuthStore } from '@/store/authStore'
 import { bootstrapService } from '@/services/bootstrapService'
 
@@ -18,28 +17,21 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const { setSession } = useAuthStore()
-  const remote = isSupabaseConfigured()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      if (remote) {
-        await authRepository.signUp(email, password, fullName, restaurant)
-        const session = await authRepository.signIn(email, password)
-        setSession(session)
-        toast(`¡Bienvenido! ${session.tenant.name} ya está listo`, 'success')
-        void bootstrapService.pullFromRemote({
-          tenantId: session.tenant.id,
-          sucursalId: session.sucursal.id,
-          userId: session.user.id,
-        })
-        navigate('/app/dashboard')
-        return
-      }
-      await new Promise(r => setTimeout(r, 800))
-      toast('Registro demo completado — usa credenciales demo para entrar', 'success')
-      navigate('/login')
+      await authRepository.signUp(email, password, fullName, restaurant)
+      const session = await authRepository.signIn(email, password)
+      setSession(session)
+      toast(`¡Bienvenido! ${session.tenant.name} ya está listo`, 'success')
+      void bootstrapService.pullFromRemote({
+        tenantId: session.tenant.id,
+        sucursalId: session.sucursal.id,
+        userId: session.user.id,
+      })
+      navigate('/app/dashboard')
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Error al registrar', 'error')
     } finally {

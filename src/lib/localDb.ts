@@ -13,18 +13,6 @@ import type {
   Tenant,
 } from '@/types'
 import type { Customer } from '@/types/demo'
-import {
-  SEED_CATEGORIES,
-  SEED_PRODUCTS,
-  SEED_TABLES,
-  SEED_AREAS,
-  SEED_ORDERS,
-  SEED_ORDER_ITEMS,
-  SEED_TENANT,
-  SEED_ORGANIZATION,
-  SEED_SUCURSAL,
-  SEED_SUCURSALES,
-} from '@/data/seed'
 
 export interface SyncQueueItem {
   id: string
@@ -96,17 +84,7 @@ export async function ensureLocalSeed(): Promise<void> {
   const db = await getDb()
   const meta = await db.get('meta', 'app')
   if (meta?.initialized) return
-
-  await putAll('tenants', [SEED_TENANT])
-  await putAll('organizations', [SEED_ORGANIZATION])
-  await putAll('sucursales', SEED_SUCURSALES)
-  await putAll('categories', SEED_CATEGORIES)
-  await putAll('products', SEED_PRODUCTS)
-  await putAll('table_areas', SEED_AREAS)
-  await putAll('tables', SEED_TABLES)
-  await putAll('orders', SEED_ORDERS)
-  await putAll('order_items', SEED_ORDER_ITEMS)
-  await db.put('meta', { initialized: true, version: 1 }, 'app')
+  await db.put('meta', { initialized: true, version: 2 }, 'app')
 }
 
 export async function resetLocalData(): Promise<void> {

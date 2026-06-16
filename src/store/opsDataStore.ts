@@ -4,11 +4,11 @@ import type {
   Reservation, WaitlistEntry, Ingredient, PurchaseOrder, Supplier, StockMovement,
   Customer, DeliveryOrder, LoyaltyRule, Invoice, CashMovement, PartialCashCut,
 } from '@/types/demo'
-import {
-  DEMO_RESERVATIONS, DEMO_INGREDIENTS, DEMO_PURCHASES, DEMO_SUPPLIERS,
-  DEMO_CUSTOMERS, DEMO_DELIVERIES, DEMO_INVOICES,
-} from '@/data/demoSeed'
-import { DEMO_TENANT_ID } from '@/lib/config'
+import { useAuthStore } from '@/store/authStore'
+
+function currentTenantId(): string {
+  return useAuthStore.getState().tenant?.id || ''
+}
 
 const DEFAULT_LOYALTY_RULES: LoyaltyRule[] = [
   { id: 'lr1', name: '1 punto por cada $10', points_per_amount: 1, amount_threshold: 10, active: true },
@@ -55,35 +55,25 @@ interface OpsDataState {
   addPartialCut: (cut: Omit<PartialCashCut, 'id' | 'created_at'>) => PartialCashCut
 }
 
-const seedReservations: Reservation[] = DEMO_RESERVATIONS.map(r => ({
-  ...r,
-  created_at: new Date().toISOString(),
-}))
+const seedReservations: Reservation[] = []
 
 export const useOpsDataStore = create<OpsDataState>()(
   persist(
     (set, get) => ({
       reservations: seedReservations,
       waitlist: [],
-      ingredients: [...DEMO_INGREDIENTS],
-      purchases: [...DEMO_PURCHASES],
-      suppliers: [...DEMO_SUPPLIERS],
+      ingredients: [],
+      purchases: [],
+      suppliers: [],
       movements: [],
-      customers: [...DEMO_CUSTOMERS],
-      deliveries: [...DEMO_DELIVERIES],
+      customers: [],
+      deliveries: [],
       loyaltyRules: DEFAULT_LOYALTY_RULES,
-      invoices: [...DEMO_INVOICES],
+      invoices: [],
       cashMovements: [],
       partialCuts: [],
 
-      resetIfEmpty: () => {
-        const s = get()
-        if (!s.ingredients.length) set({ ingredients: [...DEMO_INGREDIENTS] })
-        if (!s.reservations.length) set({ reservations: seedReservations })
-        if (!s.customers.length) set({ customers: [...DEMO_CUSTOMERS] })
-        if (!s.deliveries.length) set({ deliveries: [...DEMO_DELIVERIES] })
-        if (!s.invoices.length) set({ invoices: [...DEMO_INVOICES] })
-      },
+      resetIfEmpty: () => {},
 
       hydrateInventory: (ingredients, movements) => {
         set((s) => {
@@ -112,7 +102,7 @@ export const useOpsDataStore = create<OpsDataState>()(
         const entry: Reservation = {
           ...data,
           id: crypto.randomUUID(),
-          tenant_id: DEMO_TENANT_ID,
+          tenant_id: currentTenantId(),
           status: data.status || 'pendiente',
           created_at: new Date().toISOString(),
         }
@@ -130,7 +120,7 @@ export const useOpsDataStore = create<OpsDataState>()(
         const entry: WaitlistEntry = {
           ...data,
           id: crypto.randomUUID(),
-          tenant_id: DEMO_TENANT_ID,
+          tenant_id: currentTenantId(),
           estimated_wait: data.estimated_wait ?? 15,
           created_at: new Date().toISOString(),
         }
@@ -146,7 +136,7 @@ export const useOpsDataStore = create<OpsDataState>()(
           if (!ing) return s
           const movement: StockMovement = {
             id: crypto.randomUUID(),
-            tenant_id: DEMO_TENANT_ID,
+            tenant_id: currentTenantId(),
             ingredient_id: ingredientId,
             ingredient_name: ing.name,
             delta,
@@ -166,7 +156,7 @@ export const useOpsDataStore = create<OpsDataState>()(
         const entry: Customer = {
           ...data,
           id: crypto.randomUUID(),
-          tenant_id: DEMO_TENANT_ID,
+          tenant_id: currentTenantId(),
           visits: 0,
           points: 0,
           total_spent: 0,
@@ -211,7 +201,7 @@ export const useOpsDataStore = create<OpsDataState>()(
         const entry: DeliveryOrder = {
           ...data,
           id: crypto.randomUUID(),
-          tenant_id: DEMO_TENANT_ID,
+          tenant_id: currentTenantId(),
           status: data.status || 'recibido',
           created_at: new Date().toISOString(),
         }
@@ -229,7 +219,7 @@ export const useOpsDataStore = create<OpsDataState>()(
         const entry: Invoice = {
           ...data,
           id: crypto.randomUUID(),
-          tenant_id: DEMO_TENANT_ID,
+          tenant_id: currentTenantId(),
           folio: get().nextInvoiceFolio(),
           status: data.status || 'pendiente',
           created_at: new Date().toISOString(),
@@ -247,7 +237,7 @@ export const useOpsDataStore = create<OpsDataState>()(
       addCashMovement: (type, amount, note) => {
         const entry: CashMovement = {
           id: crypto.randomUUID(),
-          tenant_id: DEMO_TENANT_ID,
+          tenant_id: currentTenantId(),
           type,
           amount,
           note,

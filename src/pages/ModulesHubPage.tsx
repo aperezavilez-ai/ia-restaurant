@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { ALL_MODULES, MODULE_GROUPS, userCanAccessModule } from '@/config/modules'
+import { PRODUCTION_MODULES, MODULE_GROUPS, userCanAccessModule } from '@/config/modules'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
@@ -9,7 +9,7 @@ import { PageBack } from '@/components/layout/PageBack'
 
 export default function ModulesHubPage() {
   const { user } = useAuthStore()
-  const visible = ALL_MODULES.filter((m) => user && userCanAccessModule(user, m))
+  const visible = PRODUCTION_MODULES.filter((m) => user && userCanAccessModule(user, m))
 
   return (
     <div className="space-y-8 animate-fadeUp">
@@ -17,7 +17,7 @@ export default function ModulesHubPage() {
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Layers size={20} className="text-brand-600" />
-          <Badge variant="success">Demo completo</Badge>
+          <Badge variant="success">Operación en vivo</Badge>
         </div>
         <h2 className="text-2xl font-black text-slate-800">Todos los módulos IA·RESTAURANT</h2>
         <p className="text-sm text-slate-500 mt-1">

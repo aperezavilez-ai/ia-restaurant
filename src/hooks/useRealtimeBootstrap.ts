@@ -1,22 +1,23 @@
 import { useEffect } from 'react'
 import { useLiveFlowStore } from '@/store/liveFlowStore'
+import { useAuthStore } from '@/store/authStore'
 import { realtimeService } from '@/services/realtimeService'
 import { isSupabaseConfigured } from '@/lib/config'
-import { DEMO_TENANT_ID } from '@/lib/config'
 import type { QROrder, WaiterAlert } from '@/types/qrFlow'
 
 export function useRealtimeBootstrap() {
+  const tenantId = useAuthStore((s) => s.tenant?.id)
   const hydrateFromRemote = useLiveFlowStore(s => s.hydrateFromRemote)
   const applyRemoteOrder = useLiveFlowStore(s => s.applyRemoteOrder)
   const applyRemoteAlert = useLiveFlowStore(s => s.applyRemoteAlert)
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) return
+    if (!isSupabaseConfigured() || !tenantId) return
 
     hydrateFromRemote()
 
     const unsubs = [
-      realtimeService.subscribeTenant(DEMO_TENANT_ID, 'qr_orders', ({ new: row }) => {
+      realtimeService.subscribeTenant(tenantId, 'qr_orders', ({ new: row }) => {
         if (!row.id) return
         applyRemoteOrder({
           id: row.id as string,
@@ -37,7 +38,7 @@ export function useRealtimeBootstrap() {
           rejected_reason: row.rejected_reason as string | undefined,
         })
       }),
-      realtimeService.subscribeTenant(DEMO_TENANT_ID, 'waiter_alerts', ({ new: row }) => {
+      realtimeService.subscribeTenant(tenantId, 'waiter_alerts', ({ new: row }) => {
         if (!row.id) return
         applyRemoteAlert({
           id: row.id as string,
@@ -52,5 +53,5 @@ export function useRealtimeBootstrap() {
     ]
 
     return () => unsubs.forEach(u => u())
-  }, [hydrateFromRemote, applyRemoteOrder, applyRemoteAlert])
+  }, [tenantId, hydrateFromRemote, applyRemoteOrder, applyRemoteAlert])
 }

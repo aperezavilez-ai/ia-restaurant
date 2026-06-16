@@ -1,6 +1,7 @@
 import { localDb } from '@/lib/localDb'
 import { generateFolio } from '@/lib/utils'
-import { DEMO_SUCURSAL_ID, DEMO_TENANT_ID, isSupabaseConfigured } from '@/lib/config'
+import { isSupabaseConfigured } from '@/lib/config'
+import { useAuthStore } from '@/store/authStore'
 import { orderService } from '@/services/orderService'
 import { tableService } from '@/services/tableService'
 import type { QROrder } from '@/types/qrFlow'
@@ -8,14 +9,18 @@ import type { Order, OrderItem } from '@/types'
 
 export const qrFlowService = {
   async pushToKitchen(qrOrder: QROrder): Promise<string> {
-    await localDb.ensureLocalSeed()
+    const { tenant, sucursal } = useAuthStore.getState()
+    if (!tenant?.id || !sucursal?.id) {
+      throw new Error('Sesión sin restaurante activo')
+    }
+
     const orderId = crypto.randomUUID()
     const now = new Date().toISOString()
 
     const order: Order = {
       id: orderId,
-      tenant_id: DEMO_TENANT_ID,
-      sucursal_id: DEMO_SUCURSAL_ID,
+      tenant_id: tenant.id,
+      sucursal_id: sucursal.id,
       table_id: qrOrder.table_id,
       folio: qrOrder.folio,
       status: 'en_preparacion',
@@ -44,7 +49,7 @@ export const qrFlowService = {
 
     await localDb.saveOrder({ ...order, items }, items)
 
-    const tables = await localDb.getTables(DEMO_TENANT_ID, DEMO_SUCURSAL_ID)
+    const tables = await localDb.getTables(tenant.id, sucursal.id)
     const table = tables.find((t) => t.id === qrOrder.table_id)
     if (table) {
       await localDb.updateTable({

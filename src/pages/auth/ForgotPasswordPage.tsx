@@ -6,25 +6,18 @@ import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/brand/Logo'
 import { toast } from '@/components/ui/Toast'
 import { authRepository } from '@/repositories/authRepository'
-import { isSupabaseConfigured } from '@/lib/config'
 
 export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [email, setEmail] = useState('')
-  const remote = isSupabaseConfigured()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      if (remote) {
-        await authRepository.requestPasswordReset(email)
-        toast('Enlace de recuperación enviado a tu correo', 'success')
-      } else {
-        await new Promise(r => setTimeout(r, 600))
-        toast('Enlace de recuperación enviado (demo)', 'success')
-      }
+      await authRepository.requestPasswordReset(email)
+      toast('Enlace de recuperación enviado a tu correo', 'success')
       setSent(true)
     } catch (err) {
       toast(err instanceof Error ? err.message : 'No se pudo enviar el enlace', 'error')
@@ -41,7 +34,7 @@ export default function ForgotPasswordPage() {
           <h2 className="text-xl font-black text-slate-800 mb-1">Recuperar contraseña</h2>
           <p className="text-sm text-slate-500 mb-6">
             {sent
-              ? (remote ? 'Revisa tu correo para restablecer la contraseña.' : 'Revisa tu correo — en demo, usa las credenciales de acceso rápido.')
+              ? 'Revisa tu correo para restablecer la contraseña.'
               : 'Te enviaremos un enlace para restablecer tu contraseña'}
           </p>
           {!sent && (

@@ -6,7 +6,6 @@ import { syncService } from '@/services/syncService'
 import { bootstrapService } from '@/services/bootstrapService'
 import { isSupabaseConfigured } from '@/lib/config'
 import { withTimeout } from '@/lib/async'
-import { SEED_SUCURSAL } from '@/data/seed'
 import { Logo } from '@/components/brand/Logo'
 import { Loader2 } from 'lucide-react'
 
@@ -18,6 +17,8 @@ export function AuthInit({ children }: { children: React.ReactNode }) {
 
     async function init() {
       try {
+        if (!isSupabaseConfigured()) return
+
         await localDb.ensureLocalSeed()
 
         let restored = null
@@ -31,18 +32,16 @@ export function AuthInit({ children }: { children: React.ReactNode }) {
 
         if (restored) {
           setSession(restored)
-          if (isSupabaseConfigured()) {
-            void bootstrapService.pullFromRemote({
-              tenantId: restored.tenant.id,
-              sucursalId: restored.sucursal.id,
-              userId: restored.user.id,
-            })
-          }
-        } else if (state.user && state.tenant) {
+          void bootstrapService.pullFromRemote({
+            tenantId: restored.tenant.id,
+            sucursalId: restored.sucursal.id,
+            userId: restored.user.id,
+          })
+        } else if (state.user && state.tenant && state.sucursal) {
           setSession({
             user: state.user,
             tenant: state.tenant,
-            sucursal: state.sucursal || SEED_SUCURSAL,
+            sucursal: state.sucursal,
           })
         } else {
           logout()
@@ -59,6 +58,19 @@ export function AuthInit({ children }: { children: React.ReactNode }) {
     return () => { if (syncTimer) clearInterval(syncTimer) }
   }, [logout, setLoading, setSession])
 
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="min-h-screen bg-command-bg flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <Logo size="md" />
+        <h1 className="text-xl font-black text-slate-800">Configuración requerida</h1>
+        <p className="text-sm text-slate-500 max-w-md">
+          Faltan las variables <code className="text-xs bg-slate-100 px-1 rounded">VITE_SUPABASE_URL</code> y{' '}
+          <code className="text-xs bg-slate-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code>.
+        </p>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-command-bg ops-grid-bg flex flex-col items-center justify-center gap-6">
@@ -67,9 +79,6 @@ export function AuthInit({ children }: { children: React.ReactNode }) {
           <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
           <span className="text-sm font-mono">Inicializando sistema...</span>
         </div>
-        <p className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">
-          Conectando servicios…
-        </p>
       </div>
     )
   }

@@ -25,6 +25,11 @@ export function isSupabaseConfigured(): boolean {
   )
 }
 
+/** En producción el sistema requiere Supabase — no hay modo offline/demo. */
+export function isProductionMode(): boolean {
+  return import.meta.env.PROD || isSupabaseConfigured()
+}
+
 export function getDataMode(): 'local' | 'remote' {
   return isSupabaseConfigured() ? 'remote' : 'local'
 }

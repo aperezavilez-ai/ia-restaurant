@@ -12,13 +12,13 @@ import { useOpsSync } from '@/hooks/useOpsSync'
 import { tableRepository } from '@/repositories/tableRepository'
 import { orderRepository } from '@/repositories/orderRepository'
 import { localDb } from '@/lib/localDb'
-import { SEED_STAFF } from '@/data/seed'
+import { userRepository } from '@/repositories/userRepository'
 import { toast } from '@/components/ui/Toast'
 import { TableCard } from '@/components/tables/TableCard'
 import { sameOrders, sameTables } from '@/lib/opsEquality'
 import { usePOSStore } from '@/store/posStore'
 import { crmRepository } from '@/repositories/crmRepository'
-import type { RestaurantTable, TableStatus, Order, TableArea } from '@/types'
+import type { RestaurantTable, TableStatus, Order, TableArea, User } from '@/types'
 import type { Customer } from '@/types/demo'
 
 const statusLabel: Record<TableStatus, string> = {
@@ -53,10 +53,10 @@ export default function TablesPage() {
   const [tableCustomerId, setTableCustomerId] = useState<string | null>(null)
   const [tableCustomerName, setTableCustomerName] = useState<string | null>(null)
   const [customerSearch, setCustomerSearch] = useState('')
+  const [staff, setStaff] = useState<User[]>([])
 
   const load = useCallback(async () => {
     if (!ctx) return
-    await localDb.ensureLocalSeed()
     const localTables = await localDb.getTables(ctx.tenantId, ctx.sucursalId)
     const localAreas = await localDb.getAreas(ctx.tenantId, ctx.sucursalId)
     const localOrders = await localDb.getActiveOrders(ctx.tenantId, ctx.sucursalId)
@@ -84,6 +84,11 @@ export default function TablesPage() {
   useEffect(() => {
     if (!ctx) return
     crmRepository.getCustomers(ctx).then(setCustomers)
+  }, [ctx])
+
+  useEffect(() => {
+    if (!ctx) return
+    userRepository.listStaff(ctx).then(setStaff)
   }, [ctx])
 
   useEffect(() => {
@@ -186,10 +191,10 @@ export default function TablesPage() {
     cobro_pendiente: tables.filter(t => t.status === 'cobro_pendiente').length,
   }
 
-  const waiters = SEED_STAFF.filter(u => u.role === 'mesero')
+  const waiters = staff.filter(u => u.role === 'mesero')
 
   const getOrder = useCallback((tableId: string) => orders.find(o => o.table_id === tableId), [orders])
-  const getWaiterName = useCallback((id?: string) => SEED_STAFF.find(u => u.id === id)?.full_name, [])
+  const getWaiterName = useCallback((id?: string) => staff.find(u => u.id === id)?.full_name, [staff])
 
   const handleSelectTable = useCallback((table: RestaurantTable) => setSelected(table), [])
 
@@ -210,9 +215,9 @@ export default function TablesPage() {
 
   const waiterNames = useMemo(() => {
     const map = new Map<string, string>()
-    for (const user of SEED_STAFF) map.set(user.id, user.full_name)
+    for (const user of staff) map.set(user.id, user.full_name)
     return map
-  }, [])
+  }, [staff])
 
   const assignWaiter = async (waiterId: string) => {
     if (!selected) return

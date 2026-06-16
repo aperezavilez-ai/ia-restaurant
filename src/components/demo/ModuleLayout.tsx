@@ -22,7 +22,6 @@ export function ModuleLayout({ phase, title, description, children, actions, sta
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="amber">Fase {phase}</Badge>
-            <Badge variant="success">Modo Demo</Badge>
           </div>
           <h2 className="text-2xl font-black text-slate-800">{title}</h2>
           <p className="text-sm text-slate-500 mt-1 max-w-2xl">{description}</p>

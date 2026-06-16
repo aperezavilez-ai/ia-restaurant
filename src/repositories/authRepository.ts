@@ -2,7 +2,6 @@ import { authService } from '@/services/authService'
 import { tenantService } from '@/services/tenantService'
 import { isSupabaseConfigured } from '@/lib/config'
 import { localDb } from '@/lib/localDb'
-import { DEMO_CREDENTIALS, SEED_STAFF, SEED_TENANT, SEED_SUCURSAL } from '@/data/seed'
 import type { User, Tenant, Sucursal } from '@/types'
 
 const ADMIN_EMAIL = 'admin@iarestaurant.mx'
@@ -23,7 +22,7 @@ function normalizeLoginError(email: string, err: unknown): Error {
     }
     if (msg.toLowerCase().includes('invalid login')) {
       if (normalized === ADMIN_EMAIL) {
-        return new Error('Contraseña incorrecta. Admin demo: AdminIAR2026! (con 2026, no 2024)')
+        return new Error('Contraseña incorrecta. Admin: AdminIAR2026! (con 2026, no 2024)')
       }
       return new Error('Correo o contraseña incorrectos')
     }
@@ -56,9 +55,7 @@ async function buildSession(profile: User): Promise<AuthSession | null> {
     ? await tenantService.getSucursal(profile.sucursal_id)
     : (await tenantService.getSucursales(profile.tenant_id))[0]
   if (!tenant || !sucursal) return null
-  if (isSupabaseConfigured()) {
-    await persistBusinessContext(profile.tenant_id, sucursal.id)
-  }
+  await persistBusinessContext(profile.tenant_id, sucursal.id)
   return { user: profile, tenant, sucursal }
 }
 
@@ -70,53 +67,48 @@ export interface AuthSession {
 
 export const authRepository = {
   async signIn(email: string, password: string): Promise<AuthSession> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('El sistema no está configurado. Contacta al administrador.')
+    }
+
     await localDb.ensureLocalSeed()
     const normalizedEmail = email.trim().toLowerCase()
 
-    if (isSupabaseConfigured()) {
-      try {
-        const { user: authUser } = await authService.signIn(normalizedEmail, password)
-        const profile = await authService.getUserProfile(authUser.id)
-        if (!profile) throw new Error('Perfil no encontrado en el sistema')
-        const session = await buildSession(profile)
-        if (!session) throw new Error('Tenant o sucursal no encontrados')
-        return session
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        if (message.toLowerCase().includes('failed to fetch')) {
-          throw new Error('Sin conexión al servidor. Revisa tu red o intenta de nuevo.')
-        }
-        throw normalizeLoginError(normalizedEmail, err)
+    try {
+      const { user: authUser } = await authService.signIn(normalizedEmail, password)
+      const profile = await authService.getUserProfile(authUser.id)
+      if (!profile) throw new Error('Perfil no encontrado en el sistema')
+      const session = await buildSession(profile)
+      if (!session) throw new Error('Tenant o sucursal no encontrados')
+      return session
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (message.toLowerCase().includes('failed to fetch')) {
+        throw new Error('Sin conexión al servidor. Revisa tu red o intenta de nuevo.')
       }
+      throw normalizeLoginError(normalizedEmail, err)
     }
-
-    const cred = DEMO_CREDENTIALS.find((c) => c.email === normalizedEmail && c.password === password)
-    if (!cred) throw new Error('Credenciales incorrectas')
-
-    const user = SEED_STAFF[cred.userIndex]
-    return { user, tenant: SEED_TENANT, sucursal: SEED_SUCURSAL }
   },
 
   async restoreSession(): Promise<AuthSession | null> {
+    if (!isSupabaseConfigured()) return null
+
     await localDb.ensureLocalSeed()
 
-    if (isSupabaseConfigured()) {
-      try {
-        const session = await authService.getSession()
-        if (!session?.user) return null
-        const profile = await authService.getUserProfile(session.user.id)
-        if (!profile) return null
-        return buildSession(profile)
-      } catch {
-        return null
-      }
+    try {
+      const session = await authService.getSession()
+      if (!session?.user) return null
+      const profile = await authService.getUserProfile(session.user.id)
+      if (!profile) return null
+      return buildSession(profile)
+    } catch {
+      return null
     }
-    return null
   },
 
   async signUp(email: string, password: string, fullName: string, restaurantName: string): Promise<void> {
     if (!isSupabaseConfigured()) {
-      throw new Error('El registro en línea no está disponible en este entorno')
+      throw new Error('El registro requiere conexión al servidor.')
     }
     const res = await fetch('/api/auth/register', {
       method: 'POST',
@@ -136,7 +128,7 @@ export const authRepository = {
 
   async requestPasswordReset(email: string): Promise<void> {
     if (!isSupabaseConfigured()) {
-      throw new Error('La recuperación de contraseña no está disponible en este entorno')
+      throw new Error('La recuperación de contraseña no está disponible.')
     }
     await authService.resetPassword(email)
   },
@@ -149,14 +141,5 @@ export const authRepository = {
         /* local session cleared by store */
       }
     }
-  },
-
-  getDemoCredentials() {
-    return DEMO_CREDENTIALS.map((c) => ({
-      email: c.email,
-      password: c.password,
-      role: SEED_STAFF[c.userIndex].role,
-      name: SEED_STAFF[c.userIndex].full_name,
-    }))
   },
 }

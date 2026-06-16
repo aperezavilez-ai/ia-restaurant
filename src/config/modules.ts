@@ -97,8 +97,19 @@ export function userCanAccessModule(
   user: { role: string; allowed_modules?: string[] },
   module: ModuleDef
 ): boolean {
+  if (!PRODUCTION_MODULE_IDS.has(module.id)) return false
   if (user.allowed_modules?.length) {
     return user.allowed_modules.includes(module.id)
   }
   return module.roles.includes(user.role)
 }
+
+/** Módulos con pantalla real conectada a Supabase (sin placeholders demo). */
+export const PRODUCTION_MODULE_IDS = new Set([
+  'dashboard', 'pos', 'sales', 'tables', 'kitchen', 'catalog', 'cash', 'payment-gateways',
+  'delivery', 'reservations', 'inventory', 'purchases', 'customers', 'loyalty', 'invoicing',
+  'reports', 'finance', 'qr', 'comensal', 'mesero-pwa', 'users', 'branches',
+  'notifications', 'settings', 'integrations', 'printing',
+])
+
+export const PRODUCTION_MODULES = ALL_MODULES.filter((m) => PRODUCTION_MODULE_IDS.has(m.id))

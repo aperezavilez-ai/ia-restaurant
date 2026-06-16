@@ -1,7 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import { isSupabaseConfigured } from '@/lib/config'
-import { DEMO_SUCURSAL_ID, DEMO_TENANT_ID } from '@/lib/config'
+import { useAuthStore } from '@/store/authStore'
 import type { QROrder, WaiterAlert, ValidationMode } from '@/types/qrFlow'
+
+function tenantCtx() {
+  const { tenant, sucursal } = useAuthStore.getState()
+  if (!tenant?.id || !sucursal?.id) return null
+  return { tenantId: tenant.id, sucursalId: sucursal.id }
+}
 
 function mapQROrder(row: Record<string, unknown>): QROrder {
   return {
@@ -37,24 +43,28 @@ function mapAlert(row: Record<string, unknown>): WaiterAlert {
 }
 
 export const qrFlowRepository = {
-  async fetchOrders(tenantId = DEMO_TENANT_ID): Promise<QROrder[]> {
+  async fetchOrders(tenantId?: string): Promise<QROrder[]> {
     if (!isSupabaseConfigured()) return []
+    const ctx = tenantId ? { tenantId } : tenantCtx()
+    if (!ctx) return []
     const { data, error } = await supabase
       .from('qr_orders')
       .select('*')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', ctx.tenantId)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return []
     return (data || []).map(mapQROrder)
   },
 
-  async fetchAlerts(tenantId = DEMO_TENANT_ID): Promise<WaiterAlert[]> {
+  async fetchAlerts(tenantId?: string): Promise<WaiterAlert[]> {
     if (!isSupabaseConfigured()) return []
+    const ctx = tenantId ? { tenantId } : tenantCtx()
+    if (!ctx) return []
     const { data, error } = await supabase
       .from('waiter_alerts')
       .select('*')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', ctx.tenantId)
       .order('created_at', { ascending: false })
       .limit(50)
     if (error) return []
@@ -63,10 +73,12 @@ export const qrFlowRepository = {
 
   async insertOrder(order: QROrder): Promise<QROrder | null> {
     if (!isSupabaseConfigured()) return order
+    const ctx = tenantCtx()
+    if (!ctx) return null
     const { data, error } = await supabase.from('qr_orders').insert({
       id: order.id,
-      tenant_id: DEMO_TENANT_ID,
-      sucursal_id: DEMO_SUCURSAL_ID,
+      tenant_id: ctx.tenantId,
+      sucursal_id: ctx.sucursalId,
       table_id: order.table_id,
       table_number: order.table_number,
       area: order.area,
@@ -90,10 +102,12 @@ export const qrFlowRepository = {
 
   async insertAlert(alert: WaiterAlert): Promise<void> {
     if (!isSupabaseConfigured()) return
+    const ctx = tenantCtx()
+    if (!ctx) return
     await supabase.from('waiter_alerts').insert({
       id: alert.id,
-      tenant_id: DEMO_TENANT_ID,
-      sucursal_id: DEMO_SUCURSAL_ID,
+      tenant_id: ctx.tenantId,
+      sucursal_id: ctx.sucursalId,
       type: alert.type,
       table_number: alert.table_number,
       order_id: alert.order_id,
@@ -107,20 +121,24 @@ export const qrFlowRepository = {
     await supabase.from('waiter_alerts').update({ read: true }).eq('id', id)
   },
 
-  async getValidationMode(tenantId = DEMO_TENANT_ID): Promise<ValidationMode> {
+  async getValidationMode(tenantId?: string): Promise<ValidationMode> {
     if (!isSupabaseConfigured()) return 'validacion'
+    const ctx = tenantId ? { tenantId } : tenantCtx()
+    if (!ctx) return 'validacion'
     const { data } = await supabase
       .from('tenant_settings')
       .select('qr_validation')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', ctx.tenantId)
       .single()
     return (data?.qr_validation as ValidationMode) || 'validacion'
   },
 
-  async setValidationMode(mode: ValidationMode, tenantId = DEMO_TENANT_ID): Promise<void> {
+  async setValidationMode(mode: ValidationMode, tenantId?: string): Promise<void> {
     if (!isSupabaseConfigured()) return
+    const ctx = tenantId ? { tenantId } : tenantCtx()
+    if (!ctx) return
     await supabase.from('tenant_settings').upsert({
-      tenant_id: tenantId,
+      tenant_id: ctx.tenantId,
       qr_validation: mode,
       updated_at: new Date().toISOString(),
     })

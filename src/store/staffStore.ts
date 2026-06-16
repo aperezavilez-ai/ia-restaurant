@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { SEED_STAFF } from '@/data/seed'
 import type { User } from '@/types'
 
 interface StaffState {
@@ -13,7 +12,7 @@ interface StaffState {
 export const useStaffStore = create<StaffState>()(
   persist(
     (set, get) => ({
-      staff: [...SEED_STAFF],
+      staff: [],
 
       hydrate: (users) => {
         if (users.length) set({ staff: users })

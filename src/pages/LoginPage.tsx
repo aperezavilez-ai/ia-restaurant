@@ -19,7 +19,6 @@ export default function LoginPage() {
   const [bootLine, setBootLine] = useState(0)
   const { setSession } = useAuthStore()
   const navigate = useNavigate()
-  const demoUsers = authRepository.getDemoCredentials()
 
   const bootMessages = [
     'Inicializando centro de mando...',
@@ -78,9 +77,9 @@ export default function LoginPage() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Mesas', val: '14 activas' },
-                { label: 'Cocina', val: '3 órdenes' },
-                { label: 'Ventas', val: 'En vivo' },
+                { label: 'POS', val: 'Cobro' },
+                { label: 'Cocina', val: 'KDS' },
+                { label: 'Mesas', val: 'En vivo' },
               ].map(n => (
                 <div key={n.label} className="bg-command-elevated rounded-xl p-3 border border-command-border text-center">
                   <p className="text-[10px] text-slate-500 uppercase">{n.label}</p>
@@ -148,28 +147,6 @@ export default function LoginPage() {
               {' · '}
               <Link to="/forgot-password" className="text-brand-600 font-semibold hover:underline">¿Olvidaste tu contraseña?</Link>
             </p>
-            <div className="mt-6 pt-6 border-t border-command-border">
-              <p className="text-[10px] text-slate-500 text-center mb-3 uppercase tracking-wider">Accesos demo</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {demoUsers.map(u => (
-                  <button
-                    key={u.email}
-                    type="button"
-                    onClick={() => { setEmail(u.email); setPassword(u.password); setLoginError('') }}
-                    className="text-left p-2.5 rounded-xl border border-command-border hover:border-brand-400 hover:bg-brand-50 transition-all"
-                  >
-                    <p className="text-xs font-semibold text-slate-700 capitalize">{u.role.replace('_', ' ')}</p>
-                    <p className="text-[10px] text-slate-600 font-mono break-all leading-snug mt-0.5">{u.email}</p>
-                    <p className="text-[10px] text-brand-600 font-mono mt-0.5">{u.password}</p>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2 text-center leading-relaxed">
-                Cuenta demo admin: <span className="font-mono text-slate-600">admin@iarestaurant.mx</span>
-                {' · '}
-                <span className="font-mono text-brand-700 font-semibold">AdminIAR2026!</span>
-              </p>
-            </div>
           </div>
           <p className="text-slate-500 text-xs font-mono lg:hidden mt-6 text-center">
             IA·RESTAURANT v1.0

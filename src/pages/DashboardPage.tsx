@@ -29,8 +29,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-fadeUp">
       <div className="glass-panel rounded-2xl p-5 bg-white border-2 border-orange-300">
-        <p className="font-black text-slate-800 mb-2">🔴 Demo flujo QR conectado — pruébalo ahora</p>
-        <p className="text-sm text-slate-600 mb-3">Abre estas 4 pantallas en pestañas separadas y haz un pedido desde el celular:</p>
+        <p className="font-black text-slate-800 mb-2">Menú QR y pedidos desde mesa</p>
+        <p className="text-sm text-slate-600 mb-3">Abre estas pantallas para operar el flujo completo:</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           {[
             { label: '1. Comensal QR', url: '/comensal?mesa=5' },
@@ -51,8 +51,8 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-brand-100 text-brand-600"><Layers size={20} /></div>
             <div>
-              <p className="font-black text-slate-800">Explorar todos los módulos demo</p>
-              <p className="text-sm text-slate-500">45+ fases · POS, inventario, CRM, QR, IA, SaaS y más</p>
+              <p className="font-black text-slate-800">Explorar todos los módulos</p>
+              <p className="text-sm text-slate-500">POS, inventario, CRM, QR, reportes y más</p>
             </div>
           </div>
           <ArrowRight size={20} className="text-brand-600 group-hover:translate-x-1 transition-transform" />
