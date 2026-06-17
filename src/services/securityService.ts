@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Tenant } from '@/types'
-import type { TenantDevice, LoginAuditEntry, TenantDeviceStatus } from '@/types/security'
+import type { TenantDevice, LoginAuditEntry, TenantDeviceStatus, SecurityConfig } from '@/types/security'
 
 export const securityService = {
   async getDeviceByFingerprint(tenantId: string, fingerprintHash: string): Promise<TenantDevice | null> {
@@ -42,6 +42,10 @@ export const securityService = {
       .from('tenant_devices')
       .update({ last_seen_at: new Date().toISOString() })
       .eq('id', id)
+  },
+
+  async updateDeviceIp(id: string, ip: string): Promise<void> {
+    await supabase.from('tenant_devices').update({ ip_address: ip }).eq('id', id)
   },
 
   async listTenantDevices(tenantId: string): Promise<TenantDevice[]> {
@@ -89,6 +93,35 @@ export const securityService = {
       .from('tenants')
       .update({ is_active: isActive })
       .eq('id', tenantId)
+    if (error) throw error
+  },
+
+  async hasSuccessfulLoginFromIp(tenantId: string, ip: string): Promise<boolean> {
+    const { count } = await supabase
+      .from('login_audit')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('ip_address', ip)
+      .eq('success', true)
+      .limit(1)
+    return (count ?? 0) > 0
+  },
+
+  async listRecentLogins(tenantId: string, limit = 30): Promise<LoginAuditEntry[]> {
+    const { data } = await supabase
+      .from('login_audit')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    return data || []
+  },
+
+  async updateOrganizationSecurity(tenantId: string, securityConfig: SecurityConfig): Promise<void> {
+    const { error } = await supabase
+      .from('organizations')
+      .update({ security_config: securityConfig })
+      .eq('tenant_id', tenantId)
     if (error) throw error
   },
 }

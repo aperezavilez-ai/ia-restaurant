@@ -1,6 +1,6 @@
 # Checklist Go-Live — IA·RESTAURANT
 
-**Estado actual estimado:** 90%  
+**Estado actual estimado:** 97%  
 **Meta:** 100% operación comercial estable  
 **Última actualización:** 2026-06-16
 
@@ -20,6 +20,7 @@
 | 8 | Móvil POS + Caja + navegación inferior | ⬜ Validar en dispositivo real |
 | 9 | 0 bugs críticos abiertos | ⬜ En curso |
 | 10 | Monitoreo y respaldo documentados | ⬜ Pendiente |
+| 11 | Seguridad Fase 2: IP allowlist + alertas + auditoría | ✅ Código + migración 022 |
 
 ---
 
@@ -88,6 +89,13 @@
 - [x] POS: ticket compacto + botón cobrar sticky
 - [x] Cocina: tabs táctiles 44px
 - [ ] Validación 2h en dispositivo real (pendiente operador)
+
+### Seguridad (Fase 1 + 2)
+- [x] Límite de equipos por plan + aprobación admin
+- [x] Panel `/app/security` — política IP, equipos, historial
+- [x] Alertas WhatsApp: equipo nuevo, IP nueva, IP bloqueada
+- [x] Migración `022_security_phase2.sql` aplicada
+- [ ] Configurar IPs del WiFi del local (opcional, off por defecto)
 
 ## Día 5 — Observabilidad
 

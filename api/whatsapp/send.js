@@ -124,6 +124,10 @@ export default async function handler(req, res) {
   if (type === 'payment_complete' && alerts.payment_complete === false) {
     return res.status(200).json({ status: 'skipped', reason: 'alert_disabled' })
   }
+  const securityTypes = ['security_new_device', 'security_new_ip', 'security_ip_blocked']
+  if (securityTypes.includes(type) && alerts.security === false) {
+    return res.status(200).json({ status: 'skipped', reason: 'security_alert_disabled' })
+  }
 
   if (!teamPhone) {
     return res.status(400).json({ error: 'Configura el WhatsApp para alertas en Ajustes' })

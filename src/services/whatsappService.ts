@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { TenantContext } from '@/types/context'
 
-export type WhatsAppAlertType = 'order_ready' | 'payment_complete' | 'test'
+export type WhatsAppAlertType = 'order_ready' | 'payment_complete' | 'test' | 'security_new_device' | 'security_new_ip' | 'security_ip_blocked'
 
 export interface SendAlertResult {
   status: 'enviada' | 'pendiente' | 'skipped'

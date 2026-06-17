@@ -2,6 +2,8 @@
 // TIPOS GLOBALES — IA-Restaurant SaaS
 // ═══════════════════════════════════════════════
 
+import type { SecurityConfig } from './security'
+
 export type UserRole =
   | 'admin_saas'
   | 'admin_restaurant'
@@ -75,6 +77,7 @@ export interface Organization {
   reports_email?: string
   payment_config?: PaymentConfig
   whatsapp_config?: WhatsAppConfig
+  security_config?: SecurityConfig
   created_at: string
 }
 

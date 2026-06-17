@@ -3,7 +3,7 @@ import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toast'
-import { Building2, Globe, Bell, CreditCard, QrCode, MessageCircle, Send } from 'lucide-react'
+import { Building2, Globe, Bell, CreditCard, QrCode, MessageCircle, Send, Shield } from 'lucide-react'
 import { useLiveFlowStore } from '@/store/liveFlowStore'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
@@ -12,7 +12,7 @@ import { tenantRepository } from '@/repositories/tenantRepository'
 import { catalogRepository } from '@/repositories/catalogRepository'
 import { tableRepository } from '@/repositories/tableRepository'
 import { whatsappService } from '@/services/whatsappService'
-import { AuthorizedDevicesPanel } from '@/components/security/AuthorizedDevicesPanel'
+import { Link } from 'react-router-dom'
 import type { Organization, WhatsAppConfig } from '@/types'
 
 export default function SettingsPage() {
@@ -317,7 +317,20 @@ export default function SettingsPage() {
         </CardBody>
       </Card>
 
-      <AuthorizedDevicesPanel />
+      <Card>
+        <CardBody className="p-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Shield size={20} className="text-brand-600" />
+            <div>
+              <p className="font-bold text-slate-800">Seguridad y equipos</p>
+              <p className="text-xs text-slate-500">IPs permitidas, equipos y historial de accesos</p>
+            </div>
+          </div>
+          <Link to="/app/security">
+            <Button variant="outline" size="sm">Abrir</Button>
+          </Link>
+        </CardBody>
+      </Card>
     </div>
   )
 }

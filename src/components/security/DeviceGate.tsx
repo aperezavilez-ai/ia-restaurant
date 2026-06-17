@@ -15,7 +15,7 @@ const MESSAGES: Record<SecurityBlockReason, { title: string; body: string }> = {
   },
   device_pending: {
     title: 'Equipo pendiente de autorización',
-    body: 'Este dispositivo fue registrado pero aún no está aprobado. Pide al administrador del restaurante que lo autorice en Configuración → Equipos autorizados.',
+    body: 'Este dispositivo fue registrado pero aún no está aprobado. Pide al administrador que lo autorice en Seguridad → Equipos.',
   },
   device_revoked: {
     title: 'Equipo no autorizado',
@@ -24,6 +24,10 @@ const MESSAGES: Record<SecurityBlockReason, { title: string; body: string }> = {
   device_limit: {
     title: 'Límite de equipos',
     body: 'Se alcanzó el máximo de equipos del plan. Revoca uno existente o contacta soporte para ampliar tu licencia.',
+  },
+  ip_blocked: {
+    title: 'Red no autorizada',
+    body: 'Tu IP no está en la lista permitida del restaurante. Conéctate a la red del local o pide al administrador que agregue tu IP en Seguridad.',
   },
 }
 

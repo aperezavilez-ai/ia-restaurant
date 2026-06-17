@@ -110,6 +110,7 @@ export const PRODUCTION_MODULE_IDS = new Set([
   'delivery', 'reservations', 'inventory', 'purchases', 'customers', 'loyalty', 'invoicing',
   'reports', 'finance', 'qr', 'comensal', 'mesero-pwa', 'users', 'branches',
   'notifications', 'settings', 'integrations', 'printing', 'subscriptions',
+  'security', 'saas-owner',
 ])
 
 export const PRODUCTION_MODULES = ALL_MODULES.filter((m) => PRODUCTION_MODULE_IDS.has(m.id))
