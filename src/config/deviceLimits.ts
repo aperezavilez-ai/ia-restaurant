@@ -1,8 +1,8 @@
 import type { Tenant } from '@/types'
 
 export const PLAN_DEVICE_LIMITS: Record<Tenant['plan'], number> = {
-  basico: 3,
-  profesional: 8,
+  basico: 2,
+  profesional: 10,
   enterprise: 25,
 }
 
