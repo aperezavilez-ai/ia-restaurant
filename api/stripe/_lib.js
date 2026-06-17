@@ -27,6 +27,17 @@ export const PLAN_LIMITS = {
   },
 }
 
+const STRIPE_PRICE_MAP = {
+  basico: {
+    mensual: 'STRIPE_PRICE_BASICO_MENSUAL',
+    anual: 'STRIPE_PRICE_BASICO_ANUAL',
+  },
+  profesional: {
+    mensual: 'STRIPE_PRICE_PROFESIONAL_MENSUAL',
+    anual: 'STRIPE_PRICE_PROFESIONAL_ANUAL',
+  },
+}
+
 export function setCors(res, methods = 'POST, OPTIONS') {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', methods)
@@ -47,24 +58,20 @@ export function getStripe() {
   return new Stripe(key)
 }
 
-export function priceIdForPlan(planId) {
-  const map = {
-    basico: process.env.STRIPE_PRICE_BASICO,
-    profesional: process.env.STRIPE_PRICE_PROFESIONAL,
-    enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
-  }
-  return map[planId]?.trim() || null
+export function priceIdForPlan(planId, interval = 'mensual') {
+  const envKey = STRIPE_PRICE_MAP[planId]?.[interval]
+  if (!envKey) return null
+  return process.env[envKey]?.trim() || null
 }
 
 export function planFromPriceId(priceId) {
   if (!priceId) return null
-  const entries = [
-    ['basico', process.env.STRIPE_PRICE_BASICO],
-    ['profesional', process.env.STRIPE_PRICE_PROFESIONAL],
-    ['enterprise', process.env.STRIPE_PRICE_ENTERPRISE],
-  ]
-  const hit = entries.find(([, id]) => id?.trim() === priceId)
-  return hit ? hit[0] : null
+  for (const [planId, intervals] of Object.entries(STRIPE_PRICE_MAP)) {
+    for (const envKey of Object.values(intervals)) {
+      if (process.env[envKey]?.trim() === priceId) return planId
+    }
+  }
+  return null
 }
 
 export async function verifyBillingUser(req) {

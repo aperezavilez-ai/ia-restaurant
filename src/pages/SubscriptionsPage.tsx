@@ -5,7 +5,14 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { useAuthStore } from '@/store/authStore'
-import { SAAS_PLANS, SAAS_IVA_NOTE, COMPETITOR_BENCHMARK } from '@/data/saasPlans'
+import {
+  SAAS_PLANS,
+  SAAS_IVA_NOTE,
+  COMPETITOR_BENCHMARK,
+  planPrice,
+  type SaasBillingInterval,
+  type SaasPlanId,
+} from '@/data/saasPlans'
 import { SAAS_STRIPE_NOTE } from '@/data/paymentGateways'
 import { formatCurrency, cn } from '@/lib/utils'
 import { subscriptionService } from '@/services/subscriptionService'
@@ -26,10 +33,13 @@ export default function SubscriptionsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tenant = useAuthStore((s) => s.tenant)
   const setTenant = useAuthStore((s) => s.setTenant)
+  const [billing, setBilling] = useState<SaasBillingInterval>('mensual')
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
-  const currentPlan = tenant?.plan || 'profesional'
+  const currentPlan = (tenant?.plan === 'basico' || tenant?.plan === 'profesional'
+    ? tenant.plan
+    : 'profesional') as SaasPlanId
   const planDef = SAAS_PLANS.find((p) => p.id === currentPlan) || SAAS_PLANS[1]
   const subStatus = tenant?.subscription_status || 'none'
   const hasStripeCustomer = Boolean(tenant?.stripe_customer_id)
@@ -50,10 +60,10 @@ export default function SubscriptionsPage() {
     }
   }, [searchParams, setSearchParams, tenant?.id, setTenant])
 
-  const goCheckout = async (planId: typeof currentPlan) => {
-    setLoadingPlan(planId)
+  const goCheckout = async (planId: SaasPlanId) => {
+    setLoadingPlan(`${planId}-${billing}`)
     try {
-      const url = await subscriptionService.startCheckout(planId)
+      const url = await subscriptionService.startCheckout(planId, billing)
       window.location.href = url
     } catch (e) {
       toast(e instanceof Error ? e.message : 'No se pudo iniciar el pago', 'error')
@@ -72,8 +82,12 @@ export default function SubscriptionsPage() {
     }
   }
 
+  const competitorRef = billing === 'mensual'
+    ? `LITE ${formatCurrency(COMPETITOR_BENCHMARK.lite.priceMxn)} · PRO ${formatCurrency(COMPETITOR_BENCHMARK.pro.priceMxn)}`
+    : `LITE ${formatCurrency(COMPETITOR_BENCHMARK.lite.priceAnnualMxn)} · PRO ${formatCurrency(COMPETITOR_BENCHMARK.pro.priceAnnualMxn)}`
+
   return (
-    <div className="max-w-5xl space-y-6 animate-fadeUp">
+    <div className="max-w-4xl space-y-6 animate-fadeUp">
       <div>
         <Link to="/app/settings" className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-brand-600 mb-3">
           <ArrowLeft size={14} /> Volver a configuración
@@ -86,14 +100,44 @@ export default function SubscriptionsPage() {
       </div>
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-slate-700">
-        <p className="font-bold text-emerald-800">Más equipo por menos que {COMPETITOR_BENCHMARK.name}</p>
+        <p className="font-bold text-emerald-800">Más barato que {COMPETITOR_BENCHMARK.name}</p>
         <p className="mt-1 text-xs leading-relaxed">
-          Básico <strong>{formatCurrency(SAAS_PLANS[0].priceMxn)}</strong>/mes vs su LITE{' '}
-          {formatCurrency(COMPETITOR_BENCHMARK.lite.priceMxn)} · Profesional{' '}
-          <strong>{formatCurrency(SAAS_PLANS[1].priceMxn)}</strong>/mes vs su PRO{' '}
-          {formatCurrency(COMPETITOR_BENCHMARK.pro.priceMxn)} (mismos límites de equipos: 2 y 10).
+          Ellos ({billing}): {competitorRef}. Nosotros: Básico{' '}
+          <strong>{formatCurrency(planPrice(SAAS_PLANS[0], billing))}</strong> · Profesional{' '}
+          <strong>{formatCurrency(planPrice(SAAS_PLANS[1], billing))}</strong>.
         </p>
       </div>
+
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-3 p-1 rounded-full bg-slate-100 border border-command-border">
+          <button
+            type="button"
+            onClick={() => setBilling('mensual')}
+            className={cn(
+              'px-5 py-2 rounded-full text-sm font-bold transition-colors',
+              billing === 'mensual' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'
+            )}
+          >
+            Mensuales
+          </button>
+          <button
+            type="button"
+            onClick={() => setBilling('anual')}
+            className={cn(
+              'px-5 py-2 rounded-full text-sm font-bold transition-colors',
+              billing === 'anual' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-500'
+            )}
+          >
+            Anual
+          </button>
+        </div>
+      </div>
+
+      {billing === 'anual' && (
+        <p className="text-center text-xs text-brand-700 font-semibold">
+          12 meses de uso — pagas solo 10.5 meses (como Soft Restaurant)
+        </p>
+      )}
 
       <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-r from-violet-50 to-brand-50 p-5">
         <div className="flex items-start gap-3">
@@ -101,13 +145,6 @@ export default function SubscriptionsPage() {
           <div>
             <p className="font-bold text-slate-800">Stripe para tu plan IA·RESTAURANT</p>
             <p className="text-sm text-slate-600 mt-1 leading-relaxed">{SAAS_STRIPE_NOTE}</p>
-            <p className="text-xs text-slate-500 mt-2">
-              Para cobrar a <strong>comensales</strong> en tu restaurante, usa{' '}
-              <Link to="/app/payment-gateways" className="text-brand-600 font-semibold hover:underline">
-                Pasarelas de pago
-              </Link>
-              {' '}(Mercado Pago, Stripe de tu negocio o Clip).
-            </p>
           </div>
         </div>
       </div>
@@ -118,7 +155,7 @@ export default function SubscriptionsPage() {
             <p className="text-xs text-slate-500 uppercase tracking-wider">Plan actual</p>
             <p className="text-xl font-black text-slate-800 capitalize">{planDef.label}</p>
             <p className="text-sm text-slate-600 mt-1">
-              {formatCurrency(planDef.priceMxn)}/{planDef.period} + IVA · {tenant?.name}
+              {formatCurrency(planDef.priceMxn)}/mes + IVA · {tenant?.name}
             </p>
             <Badge
               variant={subStatus === 'active' || subStatus === 'trialing' ? 'success' : 'default'}
@@ -131,17 +168,14 @@ export default function SubscriptionsPage() {
             <ExternalLink size={14} /> Administrar en Stripe
           </Button>
         </div>
-        {!hasStripeCustomer && subStatus === 'none' && (
-          <p className="text-xs text-slate-500 mt-3">
-            Elige un plan abajo para pagar con tarjeta. Anual disponible en Stripe (10.5 meses = 12 de uso).
-          </p>
-        )}
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {SAAS_PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id
-          const isLoading = loadingPlan === plan.id
+          const loadKey = `${plan.id}-${billing}`
+          const isLoading = loadingPlan === loadKey
+          const amount = planPrice(plan, billing)
           return (
             <Card
               key={plan.id}
@@ -149,18 +183,20 @@ export default function SubscriptionsPage() {
             >
               {isCurrent && <Badge variant="amber" className="mb-3 w-fit">Plan actual</Badge>}
               <p className="font-black text-slate-800 text-lg">{plan.label}</p>
-              <p className="text-2xl font-mono font-black text-brand-600 mt-1">
-                {formatCurrency(plan.priceMxn)}
-                <span className="text-sm text-slate-500 font-normal">/mes</span>
+              <p className="text-3xl font-mono font-black text-brand-600 mt-1">
+                {formatCurrency(amount)}
+                <span className="text-sm text-slate-500 font-normal">
+                  /{billing === 'mensual' ? 'mes' : 'año'}
+                </span>
               </p>
-              <p className="text-[10px] text-slate-500 mt-0.5">+ IVA · Anual {formatCurrency(plan.priceAnnualMxn)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">+ IVA (moneda nacional)</p>
               <ul className="mt-4 space-y-1.5 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="text-xs text-slate-600">✓ {f}</li>
                 ))}
               </ul>
               <p className="text-[10px] text-slate-400 mt-4 font-mono">
-                {plan.maxDevices} equipos · {plan.maxUsers} usuarios · {plan.maxTables} mesas
+                {plan.maxDevices} equipos simultáneos
               </p>
               <Button
                 className="w-full mt-4"
@@ -176,7 +212,7 @@ export default function SubscriptionsPage() {
                   'Plan activo'
                 ) : (
                   <>
-                    <CreditCard size={14} /> {hasStripeCustomer ? 'Cambiar a este plan' : 'Pagar con Stripe'}
+                    <CreditCard size={14} /> Pagar {billing === 'mensual' ? 'mensual' : 'anual'}
                   </>
                 )}
               </Button>

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { SaasPlan } from '@/data/saasPlans'
+import type { SaasBillingInterval, SaasPlanId } from '@/data/saasPlans'
 
 async function authHeader(): Promise<string> {
   const { data } = await supabase.auth.getSession()
@@ -24,8 +24,8 @@ async function postStripe(path: string, body?: Record<string, unknown>): Promise
 }
 
 export const subscriptionService = {
-  async startCheckout(planId: SaasPlan['id']): Promise<string> {
-    const { url } = await postStripe('checkout', { planId })
+  async startCheckout(planId: SaasPlanId, interval: SaasBillingInterval): Promise<string> {
+    const { url } = await postStripe('checkout', { planId, interval })
     return url
   },
 

@@ -21,14 +21,15 @@ export default async function handler(req, res) {
 
   const { admin, profile, tenant, userEmail } = gate
   const planId = req.body?.planId
-  if (!['basico', 'profesional', 'enterprise'].includes(planId)) {
+  const interval = req.body?.interval === 'anual' ? 'anual' : 'mensual'
+  if (!['basico', 'profesional'].includes(planId)) {
     return res.status(400).json({ error: 'Plan inválido' })
   }
 
-  const priceId = priceIdForPlan(planId)
+  const priceId = priceIdForPlan(planId, interval)
   if (!priceId) {
     return res.status(503).json({
-      error: `Precio Stripe no configurado para el plan ${planId}`,
+      error: `Precio Stripe no configurado (${planId} ${interval})`,
     })
   }
 
@@ -59,9 +60,9 @@ export default async function handler(req, res) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { tenant_id: tenant.id, plan_id: planId },
+      metadata: { tenant_id: tenant.id, plan_id: planId, billing_interval: interval },
       subscription_data: {
-        metadata: { tenant_id: tenant.id, plan_id: planId },
+        metadata: { tenant_id: tenant.id, plan_id: planId, billing_interval: interval },
       },
       allow_promotion_codes: true,
     })
