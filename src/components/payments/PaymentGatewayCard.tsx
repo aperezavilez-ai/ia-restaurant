@@ -47,7 +47,7 @@ export function PaymentGatewayCard({ gateway, selected, onSelect }: PaymentGatew
       </ul>
 
       <p className="mt-4 text-[10px] text-slate-500 bg-slate-50 rounded-lg p-2 border border-slate-100 leading-snug">
-        Puente IA·RESTAURANT · {gateway.accountNote}
+        Puente informativo · {gateway.accountNote}
       </p>
 
       <div className="mt-4 flex flex-col sm:flex-row gap-2">
@@ -73,7 +73,7 @@ export function PaymentGatewayCard({ gateway, selected, onSelect }: PaymentGatew
             : 'border-command-border text-slate-600 hover:bg-brand-50 hover:border-brand-300',
         )}
       >
-        {selected ? '✓ Pasarela principal para cobros' : 'Usar como mi pasarela principal'}
+        {selected ? '✓ Pasarela de referencia' : 'Marcar como referencia'}
       </button>
     </Card>
   )

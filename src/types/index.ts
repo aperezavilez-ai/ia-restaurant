@@ -38,10 +38,8 @@ export interface Tenant {
 export type PaymentGatewayId = 'mercadopago' | 'stripe' | 'clip'
 
 export interface PaymentConfig {
+  /** Pasarela de referencia del restaurante (solo UI; sin credenciales) */
   gateway?: PaymentGatewayId
-  public_key?: string
-  access_token?: string
-  secret_key?: string
 }
 
 export interface WhatsAppConfig {

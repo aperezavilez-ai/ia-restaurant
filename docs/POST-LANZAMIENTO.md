@@ -8,7 +8,7 @@
 |---|--------|--------|
 | 1 | Validación móvil 2 h en dispositivo real | POS + caja en celular/tablet del local |
 | 2 | Ensayo manual 23 órdenes (`ENSAYO-GENERAL.md`) | Cuadre real si no se hizo en campo |
-| 3 | Pasarelas live (MP / Stripe negocio / Clip) | Cobro digital a cuenta del restaurante |
+| 3 | Pasarelas live (MP / Stripe / Clip) fuera de la app | Cobro comensal en proveedor; registro en POS |
 | 4 | WhatsApp alertas en número del gerente | Cocina, cobro, seguridad |
 | 5 | IP allowlist WiFi del local (opcional) | Seguridad `/app/security` |
 

@@ -132,19 +132,22 @@ export const tenantRepository = {
 
   async getPaymentConfig(ctx: TenantContext): Promise<PaymentConfig> {
     const profile = await this.getBusinessProfile(ctx)
-    return profile?.organization?.payment_config || {}
+    const raw = profile?.organization?.payment_config
+    if (raw?.gateway) return { gateway: raw.gateway }
+    return {}
   },
 
   async updatePaymentConfig(ctx: TenantContext, config: PaymentConfig): Promise<PaymentConfig> {
+    const clean: PaymentConfig = config.gateway ? { gateway: config.gateway } : {}
     let organization = await localDb.getOrganization(ctx.tenantId)
     if (!organization) throw new Error('Organización no encontrada')
 
-    organization = { ...organization, payment_config: config }
+    organization = { ...organization, payment_config: clean }
     await localDb.saveOrganization(organization)
 
     if (isSupabaseConfigured()) {
       try {
-        await tenantService.updateOrganization(organization.id, { payment_config: config })
+        await tenantService.updateOrganization(organization.id, { payment_config: clean })
       } catch {
         await localDb.enqueueSync({
           table: 'organizations',
@@ -153,6 +156,6 @@ export const tenantRepository = {
         })
       }
     }
-    return config
+    return clean
   },
 }

@@ -18,7 +18,7 @@ export function PaymentGatewaysPromo({ compact }: { compact?: boolean }) {
       >
         <span className="flex items-center gap-2 text-slate-700">
           <CreditCard size={16} className="text-brand-600" />
-          {gatewayName ? `Conectado: ${gatewayName}` : 'Conectar MP, Stripe o Clip'}
+          {gatewayName ? `Referencia: ${gatewayName}` : 'Enlaces MP, Stripe o Clip'}
         </span>
         <ChevronRight size={16} className="text-slate-400" />
       </Link>
@@ -31,11 +31,11 @@ export function PaymentGatewaysPromo({ compact }: { compact?: boolean }) {
         <div>
           <p className="font-bold text-slate-800 flex items-center gap-2">
             <CreditCard size={18} className="text-brand-600" />
-            Cobros a comensales — MP, Stripe o Clip
+            Cobros a comensales — enlaces MP, Stripe o Clip
           </p>
           <p className="text-sm text-slate-600 mt-1 max-w-xl">
-            IA·RESTAURANT solo conecta tu cuenta. El dinero va a tu pasarela.
-            Tu plan del software se paga aparte con Stripe en{' '}
+            Cobra fuera de IA·RESTAURANT con tu pasarela. Aquí solo registras el cobro en caja.
+            Tu plan del software se paga con Stripe en{' '}
             <Link to="/app/subscriptions" className="text-brand-600 font-semibold hover:underline">Suscripciones</Link>.
           </p>
           {gatewayName && (

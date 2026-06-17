@@ -21,10 +21,11 @@ import { tableRepository } from '@/repositories/tableRepository'
 import { cashRepository } from '@/repositories/cashRepository'
 import { onShiftChanged } from '@/lib/shiftEvents'
 import { crmRepository } from '@/repositories/crmRepository'
-import { createPaymentLink } from '@/services/paymentLinkService'
+import { PAYMENT_GATEWAYS } from '@/data/paymentGateways'
+import { usePaymentGatewayStore } from '@/store/paymentGatewayStore'
 import { usePOSStore, calcPOSTotals } from '@/store/posStore'
 import { DEMO_VARIANTS } from '@/data/demoSeed'
-import type { Product, RestaurantTable, Order, Payment, PaymentConfig } from '@/types'
+import type { Product, RestaurantTable, Order, Payment } from '@/types'
 import type { PaymentMethod } from '@/types'
 import type { Customer } from '@/types/demo'
 
@@ -66,8 +67,7 @@ export default function POSPage() {
   const [cashOpen, setCashOpen] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
-  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({})
-  const [paymentLinkLoading, setPaymentLinkLoading] = useState(false)
+  const preferredGateway = usePaymentGatewayStore((s) => s.getPreferred(tenant?.id || ''))
 
   const cart = usePOSStore(s => s.cart)
   const tableId = usePOSStore(s => s.tableId)
@@ -112,10 +112,8 @@ export default function POSPage() {
     tenantRepository.getBusinessProfile(ctx).then((profile) => {
       if (profile) {
         setBusinessBranding(buildBusinessBranding(profile.tenant, profile.sucursal, profile.organization))
-        setPaymentConfig(profile.organization?.payment_config || {})
       }
     })
-    tenantRepository.getPaymentConfig(ctx).then(setPaymentConfig)
   }, [ctx, tenant, sucursal])
 
   useEffect(() => {
@@ -296,24 +294,7 @@ export default function POSPage() {
     }
   }
 
-  const handleGeneratePaymentLink = async () => {
-    const folio = existingOrderFolio || `POS-${tableNumber || 'mostrador'}`
-    setPaymentLinkLoading(true)
-    try {
-      const url = await createPaymentLink(total, folio)
-      window.open(url, '_blank', 'noopener,noreferrer')
-      toast('Link abierto — el comensal paga en tu cuenta MP/Stripe; confirma en caja cuando se refleje el pago', 'success')
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo generar el link', 'error')
-    } finally {
-      setPaymentLinkLoading(false)
-    }
-  }
-
-  const canGeneratePaymentLink = payMethod === 'tarjeta' &&
-    (paymentConfig.gateway === 'mercadopago' || paymentConfig.gateway === 'stripe') &&
-    ((paymentConfig.gateway === 'mercadopago' && paymentConfig.access_token) ||
-      (paymentConfig.gateway === 'stripe' && paymentConfig.secret_key))
+  const gatewayRef = PAYMENT_GATEWAYS.find((g) => g.id === preferredGateway)
 
   const saveNotes = () => {
     if (notesLineId) updateNotes(notesLineId, notesText)
@@ -621,35 +602,27 @@ export default function POSPage() {
             )}
           </div>
 
-          {payMethod === 'tarjeta' && paymentConfig.gateway === 'clip' && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center space-y-2">
+          {(payMethod === 'tarjeta' || payMethod === 'digital') && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center space-y-2">
               <p className="text-xs text-slate-700 leading-relaxed">
-                Cobra con tu <strong>terminal o app Clip</strong>. El dinero va a tu cuenta Clip.
+                Cobra al cliente en <strong>Mercado Pago, Stripe o Clip</strong> (fuera de IA·RESTAURANT).
+                Luego confirma aquí el cobro en caja.
               </p>
-              <a href="https://www.clip.mx/" target="_blank" rel="noopener noreferrer" className="text-xs text-brand-600 font-semibold hover:underline">
-                Abrir Clip
-              </a>
+              {gatewayRef ? (
+                <a
+                  href={gatewayRef.signupUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-brand-600 font-semibold hover:underline"
+                >
+                  Abrir {gatewayRef.name}
+                </a>
+              ) : (
+                <Link to="/app/payment-gateways" className="text-xs text-brand-600 font-semibold hover:underline">
+                  Ver enlaces a pasarelas
+                </Link>
+              )}
             </div>
-          )}
-
-          {canGeneratePaymentLink && (
-            <Button
-              variant="outline"
-              className="w-full"
-              loading={paymentLinkLoading}
-              onClick={handleGeneratePaymentLink}
-            >
-              <CreditCard size={14} /> Generar link de pago ({paymentConfig.gateway === 'stripe' ? 'Stripe' : 'Mercado Pago'})
-            </Button>
-          )}
-
-          {payMethod === 'tarjeta' && !canGeneratePaymentLink && paymentConfig.gateway !== 'clip' && (
-            <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-              <Link to="/app/payment-gateways" className="text-brand-600 font-semibold hover:underline">
-                Conecta Mercado Pago, Stripe o Clip
-              </Link>
-              {' '}— IA·RESTAURANT solo es puente; el dinero va a tu cuenta
-            </p>
           )}
 
           <Button className="w-full" size="lg" loading={loading} onClick={handlePay}
