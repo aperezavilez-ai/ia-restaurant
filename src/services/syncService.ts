@@ -26,12 +26,26 @@ export const syncService = {
         failed++
       }
     }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sync-queue-changed'))
+    }
+
     return { synced, failed }
+  },
+
+  async getPendingCount(): Promise<number> {
+    const queue = await localDb.getSyncQueue()
+    return queue.length
   },
 
   startAutoSync(intervalMs = 30000) {
     const run = () => this.processQueue().catch(() => {})
     run()
-    return setInterval(run, intervalMs)
+    const timer = setInterval(run, intervalMs)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', run)
+    }
+    return timer
   },
 }

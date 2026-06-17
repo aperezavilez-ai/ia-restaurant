@@ -6,6 +6,8 @@
 2. Los cobros y pedidos se guardan en cola de sincronización.
 3. Al recuperar conexión, la sync automática envía pendientes a Supabase.
 4. Verifica el indicador **En línea** en el header.
+5. Si aparece **N sync** en naranja, hay cobros/pedidos pendientes de subir — espera a que baje a 0 antes del Corte Z.
+6. Al recuperar red, la sync es automática (~30 s). Puedes recargar la página si el contador no baja en 2 minutos.
 
 ## No aparece popup de apertura de turno
 

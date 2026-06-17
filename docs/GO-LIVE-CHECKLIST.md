@@ -1,6 +1,6 @@
 # Checklist Go-Live — IA·RESTAURANT
 
-**Estado actual estimado:** 97%  
+**Estado actual estimado:** 98%  
 **Meta:** 100% operación comercial estable  
 **Última actualización:** 2026-06-16
 
@@ -19,7 +19,7 @@
 | 7 | PWA reconexión a otra mesa | ⬜ Validar en producción |
 | 8 | Móvil POS + Caja + navegación inferior | ⬜ Validar en dispositivo real |
 | 9 | 0 bugs críticos abiertos | ⬜ En curso |
-| 10 | Monitoreo y respaldo documentados | ⬜ Pendiente |
+| 10 | Monitoreo y respaldo documentados | ✅ `docs/OBSERVABILIDAD.md` |
 | 11 | Seguridad Fase 2: IP allowlist + alertas + auditoría | ✅ Código + migración 022 |
 
 ---
@@ -97,12 +97,15 @@
 - [x] Migración `022_security_phase2.sql` aplicada
 - [ ] Configurar IPs del WiFi del local (opcional, off por defecto)
 
-## Día 5 — Observabilidad
+## Día 5 — Observabilidad ✅
 
-- [ ] Revisar errores en consola producción
-- [ ] Confirmar Supabase RLS en tablas críticas
-- [ ] Protocolo si falla internet (operar local, reintentar sync)
-- [ ] Protocolo si falla impresión (reimprimir desde corte)
+- [x] `GET /api/health` — endpoint de monitoreo
+- [x] `npm run qa:health` — producción + RLS tablas críticas
+- [x] Indicador sync pendiente en header
+- [x] Sync automática al evento `online`
+- [x] `docs/OBSERVABILIDAD.md` — logs, respaldo, escalamiento
+- [x] Protocolo impresión e internet en `docs/CONTINGENCIA.md`
+- [ ] Revisión manual errores consola en dispositivo real (operador)
 
 ## Día 6 — Ensayo general
 
@@ -131,6 +134,8 @@ Simular jornada completa:
 npm run build          # Verificar compilación
 npm run dev            # Pruebas locales
 npm run supabase:sql   # Migraciones manuales
+npm run qa:health      # Health + RLS producción
+npm run qa:smoke       # Lógica turno caja
 ```
 
 ## URLs producción
@@ -149,6 +154,6 @@ npm run supabase:sql   # Migraciones manuales
 | 2 | 92% | 92% |
 | 3 | 95% | 95% |
 | 4 | 97% | 97% |
-| 5 | 98% | — |
+| 5 | 98% | 98% |
 | 6 | 99% | — |
 | 7 | 100% | — |

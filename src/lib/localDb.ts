@@ -271,6 +271,9 @@ export const localDb = {
       created_at: new Date().toISOString(),
     }
     await putById('sync_queue', entry)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sync-queue-changed'))
+    }
     return entry
   },
 

@@ -14,7 +14,8 @@
     "configure:domain": "node scripts/configure-domain.mjs",
     "ensure:admin": "node scripts/ensure-admin.mjs",
     "recreate:admin": "node scripts/recreate-admin.mjs",
-    "qa:smoke": "node scripts/qa-smoke.mjs"
+    "qa:smoke": "node scripts/qa-smoke.mjs",
+    "qa:health": "node scripts/qa-health.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
