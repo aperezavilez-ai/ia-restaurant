@@ -23,6 +23,9 @@ interface POSState {
   promoCode: string | null
   existingOrderId: string | null
   existingOrderFolio: string | null
+  splitPartId: string | null
+  splitPartLabel: string | null
+  splitChargeAmount: number | null
   customerId: string | null
   customerName: string | null
   setTable: (id: string | null, number: number | null) => void
@@ -34,6 +37,8 @@ interface POSState {
   updateNotes: (lineId: string, notes: string) => void
   removeLine: (lineId: string) => void
   loadFromOrder: (order: Order, table?: { id: string; number: number }) => void
+  loadSplitPart: (partId: string, label: string, amount: number) => void
+  clearSplitPart: () => void
   clearCart: () => void
 }
 
@@ -53,6 +58,9 @@ export const usePOSStore = create<POSState>()(
       promoCode: null,
       existingOrderId: null,
       existingOrderFolio: null,
+      splitPartId: null,
+      splitPartLabel: null,
+      splitChargeAmount: null,
       customerId: null,
       customerName: null,
 
@@ -129,10 +137,19 @@ export const usePOSStore = create<POSState>()(
           promoCode: null,
           existingOrderId: order.id,
           existingOrderFolio: order.folio,
+          splitPartId: null,
+          splitPartLabel: null,
+          splitChargeAmount: null,
           customerId: order.customer_id ?? null,
           customerName: order.customer_name ?? null,
         })
       },
+
+      loadSplitPart: (partId, label, amount) =>
+        set({ splitPartId: partId, splitPartLabel: label, splitChargeAmount: amount }),
+
+      clearSplitPart: () =>
+        set({ splitPartId: null, splitPartLabel: null, splitChargeAmount: null }),
 
       clearCart: () => set({
         cart: [],
@@ -141,6 +158,9 @@ export const usePOSStore = create<POSState>()(
         promoCode: null,
         existingOrderId: null,
         existingOrderFolio: null,
+        splitPartId: null,
+        splitPartLabel: null,
+        splitChargeAmount: null,
         customerId: null,
         customerName: null,
       }),
@@ -158,6 +178,9 @@ export const usePOSStore = create<POSState>()(
         promoCode: s.promoCode,
         existingOrderId: s.existingOrderId,
         existingOrderFolio: s.existingOrderFolio,
+        splitPartId: s.splitPartId,
+        splitPartLabel: s.splitPartLabel,
+        splitChargeAmount: s.splitChargeAmount,
         customerId: s.customerId,
         customerName: s.customerName,
       }),

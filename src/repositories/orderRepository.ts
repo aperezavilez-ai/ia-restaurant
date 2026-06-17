@@ -10,6 +10,7 @@ import { withLocalFirst, withHybridList } from './base'
 import { isSupabaseConfigured } from '@/lib/config'
 import { generateFolio } from '@/lib/utils'
 import { TAX_RATE } from '@/data/constants'
+import { buildEqualSplitParts, allPartsPaid } from '@/lib/splitBill'
 import type { Order, OrderItem, Payment, PaymentMethod, RestaurantTable } from '@/types'
 import type { TenantContext } from '@/types/context'
 
@@ -38,6 +39,59 @@ function notifyPaymentComplete(ctx: TenantContext, folio: string, total: number)
     title: 'Cobro registrado',
     message: `${folio} — $${total.toFixed(2)} MXN`,
   }).catch(() => {})
+}
+
+function buildPaymentsForAmount(
+  orderId: string,
+  tenantId: string,
+  amount: number,
+  method: PaymentMethod,
+  now: string,
+  options?: {
+    cashReceived?: number
+    mixedCash?: number
+    mixedCard?: number
+    reference?: string
+  }
+): Payment[] {
+  if (method === 'mixto' && options?.mixedCash != null && options?.mixedCard != null) {
+    return [
+      {
+        id: crypto.randomUUID(),
+        order_id: orderId,
+        tenant_id: tenantId,
+        method: 'efectivo',
+        amount: options.mixedCash,
+        created_at: now,
+        reference: options.reference ? `${options.reference}:efectivo` : 'mixto-efectivo',
+      },
+      {
+        id: crypto.randomUUID(),
+        order_id: orderId,
+        tenant_id: tenantId,
+        method: 'tarjeta',
+        amount: options.mixedCard,
+        created_at: now,
+        reference: options.reference ? `${options.reference}:tarjeta` : 'mixto-tarjeta',
+      },
+    ]
+  }
+  const change =
+    method === 'efectivo' && options?.cashReceived
+      ? Math.max(0, options.cashReceived - amount)
+      : 0
+  return [
+    {
+      id: crypto.randomUUID(),
+      order_id: orderId,
+      tenant_id: tenantId,
+      method,
+      amount,
+      change_amount: change,
+      created_at: now,
+      reference: options?.reference,
+    },
+  ]
 }
 
 async function pushOrderRemote(
@@ -237,6 +291,9 @@ export const orderRepository = {
     if (!found) throw new Error('Orden no encontrada')
     if (found.status === 'cobrada') throw new Error('Esta orden ya fue cobrada')
     if (found.status === 'cancelada') throw new Error('Esta orden está cancelada')
+    if (found.split_config?.parts?.length) {
+      throw new Error('Cuenta dividida: cobra cada parte por separado desde Mesas o POS')
+    }
 
     const discount = Math.min(found.subtotal, options?.discount ?? found.discount ?? 0)
     const total = found.total
@@ -494,11 +551,162 @@ export const orderRepository = {
     } catch { /* sync */ }
   },
 
-  async splitBill(ctx: TenantContext, orderId: string, parts: number): Promise<{ perPerson: number; total: number }> {
+  async getOrder(ctx: TenantContext, orderId: string): Promise<Order | null> {
     const orders = await localDb.getOrders(ctx.tenantId, ctx.sucursalId)
-    const order = orders.find(o => o.id === orderId)
+    return orders.find((o) => o.id === orderId) ?? null
+  },
+
+  async setupSplitBill(ctx: TenantContext, orderId: string, labels: string[]): Promise<Order> {
+    const order = await this.getOrder(ctx, orderId)
     if (!order) throw new Error('Orden no encontrada')
-    const perPerson = Math.ceil((order.total / parts) * 100) / 100
+    if (order.status === 'cobrada') throw new Error('Orden ya cobrada')
+    if (labels.length < 2) throw new Error('Indica al menos 2 comensales')
+
+    const parts = buildEqualSplitParts(order.total, labels)
+    const now = new Date().toISOString()
+    const updated: Order = {
+      ...order,
+      status: 'cobro_parcial',
+      split_config: { parts, created_at: now },
+      updated_at: now,
+    }
+
+    await localDb.updateOrder(updated)
+    opsBroadcast.notify()
+
+    if (order.table_id) {
+      const tables = await localDb.getTables(ctx.tenantId, ctx.sucursalId)
+      const table = tables.find((t) => t.id === order.table_id)
+      if (table) {
+        const patched = { ...table, status: 'cobro_pendiente' as const }
+        await localDb.updateTable(patched)
+        try {
+          await tableService.updateTableStatus(patched.id, 'cobro_pendiente', table.current_order_id)
+        } catch {
+          /* sync */
+        }
+      }
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await orderService.updateOrderPatch(orderId, {
+          status: 'cobro_parcial',
+          split_config: updated.split_config,
+          updated_at: now,
+        })
+      } catch {
+        await localDb.enqueueSync({ table: 'orders', operation: 'update', payload: updated as never })
+      }
+    }
+
+    return updated
+  },
+
+  async paySplitPart(
+    ctx: TenantContext,
+    orderId: string,
+    partId: string,
+    method: PaymentMethod,
+    options?: {
+      cashReceived?: number
+      mixedCash?: number
+      mixedCard?: number
+      customerId?: string
+    }
+  ): Promise<{ order: Order; payment: Payment; payments: Payment[]; completed: boolean }> {
+    const order = await this.getOrder(ctx, orderId)
+    if (!order?.split_config?.parts?.length) {
+      throw new Error('Esta orden no tiene cuenta dividida')
+    }
+
+    const part = order.split_config.parts.find((p) => p.id === partId)
+    if (!part) throw new Error('Parte no encontrada')
+    if (part.paid_at) throw new Error(`${part.label} ya fue cobrada`)
+
+    const now = new Date().toISOString()
+    const payments = buildPaymentsForAmount(
+      orderId,
+      ctx.tenantId,
+      part.amount,
+      method,
+      now,
+      {
+        cashReceived: options?.cashReceived,
+        mixedCash: options?.mixedCash,
+        mixedCard: options?.mixedCard,
+        reference: `split:${partId}`,
+      }
+    )
+
+    const updatedParts = order.split_config.parts.map((p) =>
+      p.id === partId ? { ...p, paid_at: now } : p
+    )
+    const completed = allPartsPaid(updatedParts)
+
+    const updated: Order = {
+      ...order,
+      status: completed ? 'cobrada' : 'cobro_parcial',
+      cashier_id: completed ? ctx.userId : order.cashier_id,
+      split_config: completed ? null : { ...order.split_config, parts: updatedParts },
+      updated_at: now,
+    }
+
+    for (const p of payments) await localDb.savePayment(p)
+    await localDb.updateOrder(updated)
+    opsBroadcast.notify()
+
+    let tablePatch: RestaurantTable | undefined
+    if (completed && order.table_id) {
+      const tables = await localDb.getTables(ctx.tenantId, ctx.sucursalId)
+      const table = tables.find((t) => t.id === order.table_id)
+      if (table) {
+        tablePatch = freeTable(table)
+        await localDb.updateTable(tablePatch)
+      }
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await orderService.updateOrderPatch(orderId, {
+          status: updated.status,
+          split_config: updated.split_config,
+          cashier_id: updated.cashier_id,
+          updated_at: now,
+        })
+        for (const p of payments) await paymentService.createPayment(p)
+        if (tablePatch) {
+          await tableService.updateTableStatus(tablePatch.id, tablePatch.status, undefined)
+        }
+      } catch {
+        await localDb.enqueueSync({ table: 'orders', operation: 'update', payload: updated as never })
+        for (const p of payments) {
+          await localDb.enqueueSync({ table: 'payments', operation: 'insert', payload: p as never })
+        }
+      }
+    }
+
+    if (completed) {
+      const customerId = options?.customerId || order.customer_id
+      if (customerId) await crmRepository.recordSale(ctx, customerId, order.total)
+      notifyPaymentComplete(ctx, order.folio, order.total)
+    }
+
+    return {
+      order: updated,
+      payment: payments[0],
+      payments,
+      completed,
+    }
+  },
+
+  /** @deprecated Usar setupSplitBill */
+  async splitBill(ctx: TenantContext, orderId: string, parts: number): Promise<{ perPerson: number; total: number }> {
+    const order = await this.getOrder(ctx, orderId)
+    if (!order) throw new Error('Orden no encontrada')
+    const labels = Array.from({ length: parts }, (_, i) => `Persona ${i + 1}`)
+    const built = buildEqualSplitParts(order.total, labels)
+    const perPerson = built[0]?.amount ?? 0
     return { perPerson, total: order.total }
   },
 

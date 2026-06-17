@@ -172,8 +172,21 @@ export type OrderStatus =
   | 'en_preparacion'
   | 'lista'
   | 'entregada'
+  | 'cobro_parcial'
   | 'cobrada'
   | 'cancelada'
+
+export interface OrderSplitPart {
+  id: string
+  label: string
+  amount: number
+  paid_at?: string
+}
+
+export interface OrderSplitConfig {
+  parts: OrderSplitPart[]
+  created_at: string
+}
 
 export type OrderItemStatus =
   | 'pendiente'
@@ -212,6 +225,7 @@ export interface Order {
   total: number
   guests: number
   notes?: string
+  split_config?: OrderSplitConfig | null
   items?: OrderItem[]
   created_at: string
   updated_at: string

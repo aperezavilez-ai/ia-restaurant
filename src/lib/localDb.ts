@@ -199,7 +199,9 @@ export const localDb = {
 
   async getActiveOrders(tenantId: string, sucursalId: string) {
     const orders = await this.getOrders(tenantId, sucursalId)
-    return orders.filter((o) => ['abierta', 'en_preparacion', 'lista'].includes(o.status))
+    return orders.filter((o) =>
+      ['abierta', 'en_preparacion', 'lista', 'entregada', 'cobro_parcial'].includes(o.status)
+    )
   },
 
   async saveOrder(order: Order, items: OrderItem[]) {

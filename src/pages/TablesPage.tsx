@@ -44,8 +44,10 @@ export default function TablesPage() {
   const [tableForm, setTableForm] = useState({ number: '', capacity: '4', area_id: '' })
   const [saving, setSaving] = useState(false)
   const [splitModal, setSplitModal] = useState(false)
-  const [splitParts, setSplitParts] = useState(2)
+  const [splitParts, setSplitParts] = useState(3)
   const [splitTotal, setSplitTotal] = useState(0)
+  const [splitNames, setSplitNames] = useState(['', '', ''])
+  const [splitSaving, setSplitSaving] = useState(false)
   const [transferModal, setTransferModal] = useState(false)
   const [mergeModal, setMergeModal] = useState(false)
   const [targetTableId, setTargetTableId] = useState<string | null>(null)
@@ -268,7 +270,22 @@ export default function TablesPage() {
       toast('No hay orden activa en esta mesa. Usa POS para crear la venta.', 'error')
       return
     }
+    if (order.split_config?.parts?.length) {
+      toast('Cuenta dividida — cobra cada parte por separado', 'error')
+      return
+    }
     usePOSStore.getState().loadFromOrder(order, { id: table.id, number: table.number })
+    navigate(`/app/pos?mesa=${table.number}&cobrar=1`)
+    setSelected(null)
+  }
+
+  const goToCollectPart = (
+    table: RestaurantTable,
+    order: Order,
+    part: { id: string; label: string; amount: number }
+  ) => {
+    usePOSStore.getState().loadFromOrder(order, { id: table.id, number: table.number })
+    usePOSStore.getState().loadSplitPart(part.id, part.label, part.amount)
     navigate(`/app/pos?mesa=${table.number}&cobrar=1`)
     setSelected(null)
   }
@@ -280,15 +297,29 @@ export default function TablesPage() {
       toast('No hay orden activa en esta mesa', 'error')
       return
     }
-    const { total } = await orderRepository.splitBill(ctx, order.id, splitParts)
-    setSplitTotal(total)
+    setSplitTotal(order.total)
+    const n = Math.max(2, order.guests || 2)
+    setSplitParts(n)
+    setSplitNames(Array.from({ length: n }, (_, i) => `Persona ${i + 1}`))
     setSplitModal(true)
   }
 
-  const confirmSplit = () => {
-    toast(`Cuenta dividida en ${splitParts} partes de ${formatCurrency(splitTotal / splitParts)}`, 'success')
-    setSplitModal(false)
-    setSelected(null)
+  const confirmSplit = async () => {
+    if (!ctx || !selected) return
+    const order = getOrder(selected.id)
+    if (!order) return
+    setSplitSaving(true)
+    try {
+      const labels = splitNames.map((n, i) => n.trim() || `Persona ${i + 1}`)
+      await orderRepository.setupSplitBill(ctx, order.id, labels)
+      toast('Cuenta dividida — cobra cada parte en POS', 'success')
+      setSplitModal(false)
+      await load()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Error al dividir', 'error')
+    } finally {
+      setSplitSaving(false)
+    }
   }
 
   const confirmTransfer = async () => {
@@ -447,12 +478,39 @@ export default function TablesPage() {
 
             {(selected.status === 'cobro_pendiente' || getOrder(selected.id)) && getOrder(selected.id) && (
               <div className="space-y-2">
-                <Button className="w-full" onClick={() => goToCollect(selected)}>
-                  <CreditCard size={14} /> Cobrar cuenta · {formatCurrency(getOrder(selected.id)!.total)}
-                </Button>
-                <p className="text-[10px] text-slate-500 text-center">
-                  Abre caja en Caja si está cerrada → elige método de pago en POS
-                </p>
+                {getOrder(selected.id)!.split_config?.parts?.length ? (
+                  <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-3 space-y-2">
+                    <p className="text-xs font-bold text-slate-700">Cuenta dividida</p>
+                    {getOrder(selected.id)!.split_config!.parts.map((part) => (
+                      <div key={part.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-semibold text-slate-800">{part.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold">{formatCurrency(part.amount)}</span>
+                          {part.paid_at ? (
+                            <Badge variant="success">Cobrado</Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => goToCollectPart(selected, getOrder(selected.id)!, part)}
+                            >
+                              Cobrar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <Button className="w-full" onClick={() => goToCollect(selected)}>
+                      <CreditCard size={14} /> Cobrar cuenta · {formatCurrency(getOrder(selected.id)!.total)}
+                    </Button>
+                    <p className="text-[10px] text-slate-500 text-center">
+                      Abre caja en Caja si está cerrada → elige método de pago en POS
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
@@ -553,22 +611,49 @@ export default function TablesPage() {
         <div className="p-5 space-y-4">
           <p className="text-sm text-slate-600">Mesa {selected?.number} — Total {formatCurrency(splitTotal)}</p>
           <div className="flex gap-2">
-            {[2, 3, 4, 5].map(n => (
-              <button key={n} onClick={() => setSplitParts(n)}
-                className={cn('flex-1 py-3 rounded-xl border font-bold', splitParts === n ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-command-border')}>
+            {[2, 3, 4, 5, 6].map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => {
+                  setSplitParts(n)
+                  setSplitNames((prev) => {
+                    const next = [...prev]
+                    while (next.length < n) next.push(`Persona ${next.length + 1}`)
+                    return next.slice(0, n)
+                  })
+                }}
+                className={cn('flex-1 py-3 rounded-xl border font-bold', splitParts === n ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-command-border')}
+              >
                 {n}
               </button>
             ))}
           </div>
-          <div className="bg-command-elevated rounded-xl p-4 space-y-2">
+          <div className="space-y-2">
             {Array.from({ length: splitParts }, (_, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span>Persona {i + 1}</span>
-                <span className="font-mono font-bold">{formatCurrency(splitTotal / splitParts)}</span>
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  placeholder={`Comensal ${i + 1} (ej. María)`}
+                  value={splitNames[i] || ''}
+                  onChange={(e) => {
+                    const next = [...splitNames]
+                    next[i] = e.target.value
+                    setSplitNames(next)
+                  }}
+                  className="flex-1"
+                />
+                <span className="text-sm font-mono font-bold shrink-0 w-20 text-right">
+                  {formatCurrency(Math.round((splitTotal / splitParts) * 100) / 100)}
+                </span>
               </div>
             ))}
           </div>
-          <Button className="w-full" onClick={confirmSplit}>Confirmar división</Button>
+          <p className="text-[10px] text-slate-500 leading-relaxed">
+            Cada comensal paga su parte en POS (efectivo, tarjeta o mixto). El cobro con tarjeta es solo registro — el cliente paga en su app MP, Stripe o Clip.
+          </p>
+          <Button className="w-full" loading={splitSaving} onClick={confirmSplit}>
+            Confirmar división
+          </Button>
         </div>
       </Modal>
 

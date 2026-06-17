@@ -67,6 +67,7 @@ export default function POSPage() {
   const [cashOpen, setCashOpen] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
+  const [payOrder, setPayOrder] = useState<Order | null>(null)
   const preferredGateway = usePaymentGatewayStore((s) => s.getPreferred(tenant?.id || ''))
 
   const cart = usePOSStore(s => s.cart)
@@ -78,6 +79,11 @@ export default function POSPage() {
   const promoCode = usePOSStore(s => s.promoCode)
   const existingOrderId = usePOSStore(s => s.existingOrderId)
   const existingOrderFolio = usePOSStore(s => s.existingOrderFolio)
+  const splitPartId = usePOSStore(s => s.splitPartId)
+  const splitPartLabel = usePOSStore(s => s.splitPartLabel)
+  const splitChargeAmount = usePOSStore(s => s.splitChargeAmount)
+  const loadSplitPart = usePOSStore(s => s.loadSplitPart)
+  const clearSplitPart = usePOSStore(s => s.clearSplitPart)
   const customerId = usePOSStore(s => s.customerId)
   const customerName = usePOSStore(s => s.customerName)
   const addItem = usePOSStore(s => s.addItem)
@@ -128,7 +134,7 @@ export default function POSPage() {
       }
     }
     if (cobrar === '1' && existingOrderId && cart.length > 0) {
-      toast(`Cuenta ${existingOrderFolio || ''} lista para cobrar`, 'success')
+      void refreshCashStatus().then(() => openPayModal())
     }
   }, [searchParams, tables, setTable, setCustomer, customerId, existingOrderId, existingOrderFolio, cart.length])
 
@@ -148,8 +154,9 @@ export default function POSPage() {
 
   const taxRate = ctx?.taxRate ?? 0.16
   const { subtotal, discount, tax, total } = calcPOSTotals(cart, taxRate, discountPercent, discountFixed)
-  const change = payMethod === 'efectivo' ? Math.max(0, Number(cashReceived) - total) : 0
-  const mixedValid = payMethod !== 'mixto' || (Number(mixedCash) + Number(mixedCard) >= total - 0.01)
+  const chargeTotal = splitChargeAmount ?? total
+  const change = payMethod === 'efectivo' ? Math.max(0, Number(cashReceived) - chargeTotal) : 0
+  const mixedValid = payMethod !== 'mixto' || (Number(mixedCash) + Number(mixedCard) >= chargeTotal - 0.01)
   const loyaltyPointsPreview = Math.floor(total / 10) * (new Date().getDay() === 2 ? 2 : 1)
 
   const handleProductClick = (p: Product) => {
@@ -219,6 +226,12 @@ export default function POSPage() {
     if (ctx) {
       const list = await crmRepository.getCustomers(ctx)
       setCustomers(list)
+      if (existingOrderId) {
+        const order = await orderRepository.getOrder(ctx, existingOrderId)
+        setPayOrder(order)
+      } else {
+        setPayOrder(null)
+      }
     }
     setCustomerSearch('')
     setPayModal(true)
@@ -247,6 +260,39 @@ export default function POSPage() {
         customerId: customerId || undefined,
         customerName: customerName || undefined,
       }
+
+      if (splitPartId && existingOrderId) {
+        const result = await orderRepository.paySplitPart(
+          ctx,
+          existingOrderId,
+          splitPartId,
+          methodMap[payMethod],
+          {
+            cashReceived: payOptions.cashReceived,
+            mixedCash: payOptions.mixedCash,
+            mixedCard: payOptions.mixedCard,
+            customerId: payOptions.customerId,
+          }
+        )
+        setTicketTableLabel(tableNumber ? `Mesa ${tableNumber}` : 'Mostrador')
+        setTicketOrder(result.order)
+        setTicketPayment(result.payment)
+        setTicketChange(change)
+        clearSplitPart()
+        setPayModal(false)
+        setCashReceived('')
+        setMixedCash('')
+        setMixedCard('')
+        if (result.completed) {
+          clearCart()
+          setTable(null, null)
+          toast(`✓ Cuenta completa — ${result.order.folio}`, 'success')
+        } else {
+          toast(`✓ ${splitPartLabel} cobrada — faltan partes por cobrar`, 'success')
+        }
+        return
+      }
+
       const { order, payment } = existingOrderId
         ? await orderRepository.completeOrderPayment(
             ctx, existingOrderId, methodMap[payMethod],
@@ -510,7 +556,7 @@ export default function POSPage() {
         </div>
       </Modal>
 
-      <Modal open={payModal} onClose={() => setPayModal(false)} title="Procesar cobro" size="sm">
+      <Modal open={payModal} onClose={() => { setPayModal(false); clearSplitPart() }} title="Procesar cobro" size="sm">
         <div className="p-5 space-y-4">
           {!cashOpen && (
             <div className="rounded-xl border border-ops-danger/40 bg-red-50 p-4 space-y-3">
@@ -523,10 +569,43 @@ export default function POSPage() {
               </Link>
             </div>
           )}
+          {payOrder?.split_config?.parts?.length && !splitPartId ? (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600 text-center">
+                Cuenta dividida — elige quién paga ahora
+              </p>
+              {payOrder.split_config.parts.map((part) => (
+                <button
+                  key={part.id}
+                  type="button"
+                  disabled={Boolean(part.paid_at)}
+                  onClick={() => loadSplitPart(part.id, part.label, part.amount)}
+                  className={cn(
+                    'w-full flex justify-between items-center p-3 rounded-xl border text-sm',
+                    part.paid_at
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-command-border hover:border-brand-300 hover:bg-brand-50'
+                  )}
+                >
+                  <span className="font-semibold">{part.label}</span>
+                  <span className="font-mono font-bold">
+                    {part.paid_at ? 'Cobrado ✓' : formatCurrency(part.amount)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
           <div className="bg-brand-50 border border-brand-200 rounded-2xl p-5 text-center">
+            {splitPartLabel && (
+              <p className="text-xs font-semibold text-brand-700 mb-1">Cobro: {splitPartLabel}</p>
+            )}
             <p className="text-[10px] font-mono text-slate-500 uppercase">Total</p>
-            <p className="text-4xl font-mono font-black text-brand-600 mt-1">{formatCurrency(total)}</p>
-            {discount > 0 && <p className="text-xs text-ops-success mt-1">Descuento aplicado: −{formatCurrency(discount)}</p>}
+            <p className="text-4xl font-mono font-black text-brand-600 mt-1">{formatCurrency(chargeTotal)}</p>
+            {splitPartId && existingOrderFolio && (
+              <p className="text-[10px] text-slate-500 mt-1">Parte de {existingOrderFolio}</p>
+            )}
+            {discount > 0 && !splitPartId && <p className="text-xs text-ops-success mt-1">Descuento aplicado: −{formatCurrency(discount)}</p>}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[{ id: 'efectivo', label: 'Efectivo', icon: Banknote }, { id: 'tarjeta', label: 'Tarjeta', icon: CreditCard }, { id: 'digital', label: 'Digital', icon: Smartphone }, { id: 'mixto', label: 'Mixto', icon: Sparkles }].map(m => (
@@ -546,7 +625,7 @@ export default function POSPage() {
               <Input label="Tarjeta" type="number" value={mixedCard} onChange={e => setMixedCard(e.target.value)} />
             </div>
           )}
-          {payMethod === 'efectivo' && Number(cashReceived) >= total && (
+          {payMethod === 'efectivo' && Number(cashReceived) >= chargeTotal && (
             <div className="bg-ops-success/10 rounded-xl p-3 flex justify-between border border-ops-success/30">
               <span className="text-sm text-ops-success font-mono">CAMBIO</span>
               <span className="text-lg font-mono font-black text-ops-success">{formatCurrency(change)}</span>
@@ -626,9 +705,11 @@ export default function POSPage() {
           )}
 
           <Button className="w-full" size="lg" loading={loading} onClick={handlePay}
-            disabled={!cashOpen || (payMethod === 'efectivo' && Number(cashReceived) < total) || !mixedValid}>
+            disabled={!cashOpen || (payMethod === 'efectivo' && Number(cashReceived) < chargeTotal) || !mixedValid}>
             Confirmar cobro
           </Button>
+            </>
+          )}
         </div>
       </Modal>
 

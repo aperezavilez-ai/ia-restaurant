@@ -30,7 +30,7 @@ export const orderService = {
     const { data, error } = await supabase
       .from('orders').select('*, order_items(*)')
       .eq('tenant_id', tenantId).eq('sucursal_id', sucursalId)
-      .in('status', ['abierta', 'en_preparacion', 'lista'])
+      .in('status', ['abierta', 'en_preparacion', 'lista', 'entregada', 'cobro_parcial'])
       .order('created_at', { ascending: false })
     if (error) throw error
     return (data || []).map((row) => normalizeOrder(row as Record<string, unknown>))
@@ -62,6 +62,14 @@ export const orderService = {
       .from('orders')
       .update(patch)
       .eq('id', orderId)
+    if (error) throw error
+  },
+
+  async updateOrderPatch(
+    orderId: string,
+    patch: Partial<Pick<Order, 'status' | 'split_config' | 'updated_at' | 'cashier_id'>>
+  ): Promise<void> {
+    const { error } = await supabase.from('orders').update(patch).eq('id', orderId)
     if (error) throw error
   },
   async getOrderHistory(tenantId: string, sucursalId: string, limit = 50): Promise<Order[]> {
