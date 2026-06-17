@@ -75,9 +75,9 @@ export const DEMO_DELIVERIES: DeliveryOrder[] = [
 ]
 
 export const DEMO_PLANS: SubscriptionPlan[] = [
-  { id: 'plan1', name: 'basico', price: 990, max_users: 5, max_branches: 1, max_tables: 20, max_products: 50, features: ['POS', 'Mesas', 'Cocina', 'Reportes básicos'] },
-  { id: 'plan2', name: 'profesional', price: 2490, max_users: 20, max_branches: 5, max_tables: 50, max_products: 200, features: ['Todo Básico', 'Inventario', 'CRM', 'QR Comensal', 'IA Copiloto', 'Multi sucursal'] },
-  { id: 'plan3', name: 'enterprise', price: 4990, max_users: 100, max_branches: 50, max_tables: 500, max_products: 5000, features: ['Todo Profesional', 'CFDI', 'Franquicias', 'API', 'BI Avanzado', 'IA-Support', 'White Label'] },
+  { id: 'plan1', name: 'basico', price: 699, max_users: 5, max_branches: 1, max_tables: 20, max_products: 50, features: ['POS', 'Mesas', 'Cocina', '2 equipos', 'Reportes básicos'] },
+  { id: 'plan2', name: 'profesional', price: 999, max_users: 15, max_branches: 3, max_tables: 50, max_products: 200, features: ['Todo Básico', 'Inventario', 'CRM', '10 equipos', 'Multi sucursal'] },
+  { id: 'plan3', name: 'enterprise', price: 1399, max_users: 50, max_branches: 20, max_tables: 200, max_products: 2000, features: ['Todo Profesional', 'Franquicias', 'API', '25 equipos', 'Soporte prioritario'] },
 ]
 
 export const DEMO_PERMISSIONS: Permission[] = [
