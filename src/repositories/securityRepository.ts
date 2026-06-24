@@ -126,6 +126,23 @@ export const securityRepository = {
         )
       }
       if (existing.status === 'pending') {
+        const canSelfApprove = user.role === 'admin_restaurant' || user.role === 'gerente'
+        if (canSelfApprove) {
+          await securityService.updateDeviceStatus(existing.id, 'approved', user.id)
+          await securityService.touchDevice(existing.id)
+          if (clientIp) await securityService.updateDeviceIp(existing.id, clientIp)
+          await securityService.logLogin({
+            tenant_id: tenant.id,
+            user_id: user.id,
+            device_id: existing.id,
+            email: user.email,
+            ip_address: clientIp || undefined,
+            user_agent: navigator.userAgent,
+            success: true,
+            reason: 'admin_self_approve',
+          })
+          return { ...existing, status: 'approved' as const }
+        }
         throw new SecurityAccessError(
           'Equipo pendiente de autorización. El administrador debe aprobarlo en Seguridad → Equipos.',
           'device_pending',
@@ -159,7 +176,8 @@ export const securityRepository = {
     }
 
     const isFirst = activeCount === 0
-    const status = isFirst ? 'approved' : 'pending'
+    const isAdminRole = user.role === 'admin_restaurant' || user.role === 'gerente'
+    const status = isFirst || isAdminRole ? 'approved' : 'pending'
 
     const device = await securityService.insertDevice({
       tenant_id: tenant.id,
